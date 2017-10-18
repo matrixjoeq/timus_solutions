@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*- 
 
 '''
 1001. Reverse Root
@@ -25,7 +26,11 @@ import math;
 def get_inputs():
     inputs = []
     for line in sys.stdin:
-        inputs.append(line.split(' '))
+        line = line.strip('\r\n')
+        l = line.split(' ')
+        for i in l:
+            if (i.isdigit()):
+                inputs.append(i)
 
     return inputs
 
@@ -38,4 +43,3 @@ def reverse_root(inputs):
 
 if __name__ == '__main__':
     reverse_root(get_inputs())
-
