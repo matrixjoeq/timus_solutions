@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# -*- coding: utf-8 -*- 
+# -*- coding: utf-8 -*-
 
 '''
 [Description]
@@ -13,6 +13,9 @@
 import sys;
 import math;
 
-if __name__ == '__main__':
+def calc():
     pass
-    
+
+if __name__ == '__main__':
+    calc()
+
