@@ -33,7 +33,19 @@ import sys;
 import math;
 
 def calc():
-    pass
+    k, n = sys.stdin.readline().split(' ')
+    k = int(k)
+    n = int(n)
+    cars = sys.stdin.readline().split(' ')
+    cur_cars = 0
+    cur_jam = 0
+    total_jam = 0
+    for car in cars:
+        cur_jam = int(car) + cur_jam - k
+        if (cur_jam < 0):
+            cur_jam = 0
+
+    print cur_jam
 
 if __name__ == '__main__':
     calc()
