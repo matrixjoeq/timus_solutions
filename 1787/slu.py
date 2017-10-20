@@ -37,9 +37,7 @@ def calc():
     k = int(k)
     n = int(n)
     cars = sys.stdin.readline().split(' ')
-    cur_cars = 0
     cur_jam = 0
-    total_jam = 0
     for car in cars:
         cur_jam = int(car) + cur_jam - k
         if (cur_jam < 0):
