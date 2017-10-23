@@ -152,6 +152,7 @@ static void calc()
     }
 
     if (_a != 1) {
+        ++num_factors;
         if (tail) {
             tail = list_append_value(tail, _a);
         }
@@ -160,23 +161,28 @@ static void calc()
             tail = factors;
         }
     }
-    //list_print(factors);
+    list_print(factors);
     
     uint64_t r = 0;
     // inclusion-exclusion process
     slist_t* x = factors;
-    int flag = 1;
-    for (uint64_t i = 1; i <= num_factors; ++i) {
-        uint64_t tmp = 1;
-        slist_t* y = x;
-        for (uint64_t j = i; j > 0; --j) {
-            tmp *= y->factor;
-            y = y->next;
+    for (uint64_t i = 0; i < num_factors; ++i) {
+        int flag = 1;
+        for (uint64_t j = 0; j < (num_factors - i); ++j) {
+            slist_t* y = x;
+            uint64_t tmp = 1;
+            uint64_t k = j;
+            do {
+                tmp *= y->factor;
+                y = y->next;
+            } while (k-- > 0);
+            r += flag * (n / tmp);
+            flag *= -1;
         }
-        r += flag * (n / tmp);
         x = x->next;
     }
 
+    printf("%llu\n", r);
     list_destroy(factors);
     factors = 0;
     tail = 0;
