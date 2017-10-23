@@ -16,8 +16,8 @@
  * people to the new worlds has increased. Therefore, two new education centers should
  * be built on Ataraxia. Discussion about the details of the project in the local
  * administration is already underway for many days. During this time it was decided
- * that the first center will consist of a2 sections and that the second one will
- * consist of no more than n2 sections. The situation is complicated because, according
+ * that the first center will consist of a^2 sections and that the second one will
+ * consist of no more than n^2 sections. The situation is complicated because, according
  * to requirements of the antimonopoly legislation, construction works must be performed
  * by at least two different companies, each of them must build an equal number of
  * buildings and an equal number of 100-meters segments of the fence.
@@ -29,7 +29,7 @@
  * by the administration.
  * 
  * [Input]
- * The only line contains integers a and n (1 ≤ a ≤ 1012; 1 ≤ n ≤ 1018).
+ * The only line contains integers a and n (1 ≤ a ≤ 10^12; 1 ≤ n ≤ 10^18).
  * 
  * [Output]
  * Output an amount of different sizes of the second center meeting the requirements
@@ -44,58 +44,58 @@
 #include <math.h>
 #include <assert.h>
 
-#ifndef min
-#define min(x, y) ((x) < (y) ? (x) : (y))
-#endif // min
+typedef struct __slist {
+    struct __slist* next;
+    uint64_t factor;
+} slist_t;
 
-static bool is_prime(uint64_t n)
+static slist_t* list_create_node(slist_t** node, uint64_t value)
 {
-    if (n == 0 || n == 1) return true;
+    assert(node);
+    assert(!*node);
 
-    uint64_t divisor = 0;
-    // possible max divisor is number / 2
-    // otherwise if max_divisor = number / 2 + n (n>=1)
-    // other_divisor = number / max_divisor
-    // then other_divisor < 2 which is 1.
-    for (divisor = n / 2; n % divisor != 0; --divisor) {}
-    
-    return (divisor == 1);
+    *node = (slist_t*)malloc(sizeof(slist_t));
+    assert(*node);
+
+    (*node)->next = 0;
+    (*node)->factor = value;
+
+    return *node;
 }
 
-static uint64_t __gcd(uint64_t x, uint64_t y)
+static slist_t* list_append_value(slist_t* tail, uint64_t value)
 {
-    if (!x) return y;
-    if (!y) return x;
-    return __gcd(y % x, x);
+    assert(tail);
+    assert(!(tail->next));
+
+    slist_t* node = 0;
+    list_create_node(&node, value);
+    tail->next = node;
+
+    return node;
 }
 
-// greatest common divisor
-static uint64_t gcd(uint64_t x, uint64_t y)
+static void list_destroy(slist_t* l)
 {
-    uint64_t n = x;
-    uint64_t m = 0;
-    if (x > y) {
-        m = (x % y);
-        n = y;
+    assert(l);
+    slist_t* p = l->next;
+    while (p) {
+        free(l);
+        l = p;
+        p = l->next;
     }
-    else if (x < y) {
-        m = (y % x);
-    }
-    else {
-        return x;
-    }
 
-    return __gcd(n, m);
+    free(l);
 }
 
-static bool is_even(uint64_t n)
+static void list_print(slist_t* l)
 {
-    return (n % 2 == 0);
-}
-
-static bool is_odd(uint64_t n)
-{
-    return (n % 2 == 1);
+    assert(l);
+    while (l) {
+        printf("%llu ", l->factor);
+        l = l->next;
+    }
+    printf("\n");
 }
 
 static void calc()
@@ -103,15 +103,84 @@ static void calc()
     uint64_t a, n;
     scanf("%llu %llu", &a, &n);
 
-    uint64_t r = 0;
-    for (uint64_t i = 1; i <= n; ++i) {
-        if ((is_even(a) && is_even(i)) || (is_odd(a) && is_odd(i)))
-            ++r;
-        else if (gcd(a * i, a + i) > 1)
-            ++r;
+    // this problem is to find how many numbers in range [1, n] 
+    // meeting the requirement: gcd(a*a+n*n, 4*(a+n)) > 1
+    // if a*a+n*n is even, gcd(a*a+n*n, 4*(a+n)) must be greater than 1
+    // so we only need to handle a*a+n*n is odd cases, thus 4 is unnecessary.
+    // and since gcd(a, b) = gcd(b%a, a), gcd(a*a+n*n, a+n) = gcd(-2an, a+n)
+    // because we are handling a*a+n*n is odd cases, so a,n must be one odd 
+    // and the other even => a*n and a+n is odd, thus -2 is unnecessary.
+    // now we need to find gcd(a*n, a+n) > 1 numbers.
+    // assume a = p1*p2*...*ps (pi, 1<=i<=s is prime, without considering if duplicated)
+    // and n = q1*q1*...*qr (qi, 1<=i<=r is prime, without considering if duplicated)
+    // if gcd(a*n, a+n) > 1, there must be a pi == qj, 
+    // otherwise a*n = p1*p2*...*ps*q1*q2*...*qr, a+n = o1*o2*...*ot
+    // where oi (1<=i<=t) is prime and none of them is the same as pi or qi =>
+    // gcd(a*n, a+n) == 1 that is not correct. which means gcd(a, n) > 1
+    // on the other hand, if gcd(a, n) > 1, assume d = gcd(a, n), a = d*a', n = d*n'
+    // then gcd(a*n, a+n) = gcd(d*d*a'*n', d*(a'+n')) >= d > 1
+    // gcd(a*n, a+n) > 1 <=> gcd(a, n) > 1
+    // finally, we are looking for gcd(a, n) > 1
+    // use inclusion-exclusion principle to find how many numbers in range [1, n]
+    // is prime to a
+    
+    // first, get all prime factors of a
+    slist_t* factors = 0;
+    slist_t* tail = 0;
+    uint64_t _a = a;
+    uint64_t num_factors = 0;
+    if (!(_a & 1)) { // a is even
+        list_create_node(&factors, 2);
+        tail = factors;
+        ++num_factors;
+        do { _a /= 2; } while (_a % 2 == 0); // remove all 2
     }
 
-    printf("%llu\n", r);
+    for (uint64_t i = 3; i * i <= _a; i += 2) {
+        if (_a % i == 0) {
+            ++num_factors;
+            if (tail) {
+                tail = list_append_value(tail, i);
+            }
+            else {
+                list_create_node(&factors, i);
+                tail = factors;
+            }
+
+            do { _a /= i; } while (_a % i == 0); // remove all i
+        }
+    }
+
+    if (_a != 1) {
+        if (tail) {
+            tail = list_append_value(tail, _a);
+        }
+        else {
+            list_create_node(&factors, _a);
+            tail = factors;
+        }
+    }
+    //list_print(factors);
+    
+    uint64_t r = 0;
+    // inclusion-exclusion process
+    slist_t* x = factors;
+    int flag = 1;
+    for (uint64_t i = 1; i <= num_factors; ++i) {
+        uint64_t tmp = 1;
+        slist_t* y = x;
+        for (uint64_t j = i; j > 0; --j) {
+            tmp *= y->factor;
+            y = y->next;
+        }
+        r += flag * (n / tmp);
+        x = x->next;
+    }
+
+    list_destroy(factors);
+    factors = 0;
+    tail = 0;
+    x = 0;
 }
 
 int main()
