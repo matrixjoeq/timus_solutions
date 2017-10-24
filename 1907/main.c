@@ -77,7 +77,8 @@ static slist_t* list_append_value(slist_t* tail, uint64_t value)
 
 static void list_destroy(slist_t* l)
 {
-    assert(l);
+    if (!l) return;
+    
     slist_t* p = l->next;
     while (p) {
         free(l);
@@ -103,28 +104,28 @@ static void calc()
     uint64_t a, n;
     scanf("%llu %llu", &a, &n);
 
-    // this problem is to find how many numbers in range [1, n] 
-    // meeting the requirement: gcd(a*a+n*n, 4*(a+n)) > 1
-    // if a*a+n*n is even, gcd(a*a+n*n, 4*(a+n)) must be greater than 1
-    // so we only need to handle a*a+n*n is odd cases, thus 4 is unnecessary.
-    // and since gcd(a, b) = gcd(b%a, a), gcd(a*a+n*n, a+n) = gcd(-2an, a+n)
-    // because we are handling a*a+n*n is odd cases, so a,n must be one odd 
+    // This problem is to find how many numbers in range [1, n],
+    // which meets the requirement: gcd(a*a+n*n, 4*(a+n)) > 1.
+    // If a*a+n*n is even, gcd(a*a+n*n, 4*(a+n)) must be greater than 1.
+    // So, we only need to handle a*a+n*n is odd cases, thus 4 is unnecessary.
+    // And since gcd(a, b) = gcd(b%a, a), we get gcd(a*a+n*n, a+n) = gcd(-2an, a+n).
+    // Because we are handling a*a+n*n is odd cases, so a and n must be one odd 
     // and the other even => a*n and a+n is odd, thus -2 is unnecessary.
-    // now we need to find gcd(a*n, a+n) > 1 numbers.
-    // assume a = p1*p2*...*ps (pi, 1<=i<=s is prime, without considering if duplicated)
-    // and n = q1*q1*...*qr (qi, 1<=i<=r is prime, without considering if duplicated)
-    // if gcd(a*n, a+n) > 1, there must be a pi == qj, 
+    // Now we need to find gcd(a*n, a+n) > 1 numbers.
+    // Assume a = p1*p2*...*ps (pi, 1<=i<=s is prime, without considering duplication)
+    // and n = q1*q1*...*qr (qi, 1<=i<=r is prime, without considering duplication).
+    // If gcd(a*n, a+n) > 1, there must be a pi == qj, 
     // otherwise a*n = p1*p2*...*ps*q1*q2*...*qr, a+n = o1*o2*...*ot
     // where oi (1<=i<=t) is prime and none of them is the same as pi or qi =>
-    // gcd(a*n, a+n) == 1 that is not correct. which means gcd(a, n) > 1
-    // on the other hand, if gcd(a, n) > 1, assume d = gcd(a, n), a = d*a', n = d*n'
-    // then gcd(a*n, a+n) = gcd(d*d*a'*n', d*(a'+n')) >= d > 1
-    // gcd(a*n, a+n) > 1 <=> gcd(a, n) > 1
-    // finally, we are looking for gcd(a, n) > 1
-    // use inclusion-exclusion principle to find how many numbers in range [1, n]
-    // is prime to a
+    // gcd(a*n, a+n) == 1 which is comflicted with assumption. This means gcd(a, n) > 1.
+    // On the other hand, if gcd(a, n) > 1, assume d = gcd(a, n), a = d*a', n = d*n'
+    // then gcd(a*n, a+n) = gcd(d*d*a'*n', d*(a'+n')) >= d > 1.
+    // We get gcd(a*n, a+n) > 1 <=> gcd(a, n) > 1.
+    // Finally, we are looking for gcd(a, n) > 1.
+    // Use inclusion-exclusion principle to find how many numbers in range [1, n]
+    // is not prime to a.
     
-    // first, get all prime factors of a
+    // First, get all prime factors of a.
     slist_t* factors = 0;
     slist_t* tail = 0;
     uint64_t _a = a;
@@ -161,32 +162,41 @@ static void calc()
             tail = factors;
         }
     }
-    list_print(factors);
+    //list_print(factors);
     
+    // Following inclusion-exclusion proccess will find all gcd(a, n) > 1 numbers.
+    // If a is even, this happens to be the answer. Because gcd(a, n) > 1 covers
+    // all even numbers in range [1, n].
+    // However, if a is odd, condition gcd(a, n) > 1 and n % 2 == 1 has overlapped
+    // region. But none of the two can cover the other. So we need to minus the
+    // overlapped region which is counted twice.
     uint64_t r = 0;
+    if (a & 1) {
+        r += (n + 1) / 2; // add all odd numbers in [1, n]
+        n /= 2;
+    }
     // inclusion-exclusion process
-    slist_t* x = factors;
-    for (uint64_t i = 0; i < num_factors; ++i) {
-        int flag = 1;
-        for (uint64_t j = 0; j < (num_factors - i); ++j) {
-            slist_t* y = x;
-            uint64_t tmp = 1;
-            uint64_t k = j;
-            do {
-                tmp *= y->factor;
-                y = y->next;
-            } while (k-- > 0);
-            r += flag * (n / tmp);
-            flag *= -1;
+    for (uint64_t mask = 1; mask < (1 << num_factors); ++mask) {
+        uint64_t tmp = 1;
+        int c = 0;
+        slist_t* x = factors;
+        for (uint64_t i = 0; i < num_factors; ++i, x = x->next) {
+            if ((1 << i) & mask) {
+                ++c;
+                tmp *= x->factor;
+            }
         }
-        x = x->next;
+
+        if (c & 1) {
+            r += (n / tmp);
+        }
+        else {
+            r -= (n / tmp);
+        }
     }
 
     printf("%llu\n", r);
     list_destroy(factors);
-    factors = 0;
-    tail = 0;
-    x = 0;
 }
 
 int main()
