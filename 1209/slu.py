@@ -25,8 +25,34 @@ i-th digit of output is to be equal to the Ki-th digit of described above sequen
 import sys;
 import math;
 
+ones = []
+
+def get_digit(k):
+    if (k in ones):
+        return 1
+    step = 1
+    _k = k
+    while (_k > 0):
+        _k = _k - step
+        if (_k == 1):
+            ones.append(k)
+            return 1
+        else:
+            step = step + 1
+
+    return 0
+
 def calc():
-    pass
+    r = ''
+    n = int(sys.stdin.readline())
+    while (n > 0):
+        k = int(sys.stdin.readline())
+        d = get_digit(k)
+        if (r != ''):
+            r = r + ' '
+        r = r + str(d)
+        n = n - 1
+    print r
 
 if __name__ == '__main__':
     calc()
