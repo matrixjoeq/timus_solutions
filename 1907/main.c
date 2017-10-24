@@ -168,11 +168,16 @@ static void calc()
     // If a is even, this happens to be the answer. Because gcd(a, n) > 1 covers
     // all even numbers in range [1, n].
     // However, if a is odd, condition gcd(a, n) > 1 and n % 2 == 1 has overlapped
-    // region. But none of the two can cover the other. So we need to minus the
-    // overlapped region which is counted twice.
+    // area. But none of the two can cover the other. So we need to minus the
+    // overlapped area which is counted twice.
     uint64_t r = 0;
     if (a & 1) {
-        r += (n + 1) / 2; // add all odd numbers in [1, n]
+        r += (n + 1) / 2; // Add all odd numbers in [1, n].
+        // Now, what's tricky is that because all odd numbers in [1, n] are right,
+        // so we only need to care about even numbers in [1, n].
+        // To be more specific, numbers in [2, 4, 6, ..., 2m] (m = floor(n/2)).
+        // Since a is odd, the 2 part is useless, remove it will be numbers in 
+        // [1, 2, 3, ..., m]. So in this case, n is reduced to n/2.
         n /= 2;
     }
     // inclusion-exclusion process
