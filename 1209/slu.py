@@ -25,22 +25,13 @@ i-th digit of output is to be equal to the Ki-th digit of described above sequen
 import sys;
 import math;
 
-ones = []
-
 def get_digit(k):
-    if (k in ones):
+    n = int(math.sqrt(2 * (k - 1)))
+    p = n * (n + 1) / 2 + 1
+    if (k == p):
         return 1
-    step = 1
-    _k = k
-    while (_k > 0):
-        _k = _k - step
-        if (_k == 1):
-            ones.append(k)
-            return 1
-        else:
-            step = step + 1
-
-    return 0
+    else:
+        return 0
 
 def calc():
     r = ''
