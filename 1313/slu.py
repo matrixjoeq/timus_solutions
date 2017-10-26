@@ -61,7 +61,7 @@ def calc():
 
     x_start = 0
     r = []
-    for sum_xy in range(0, 2 * n - 1):
+    for sum_xy in range(2 * n - 1):
         x_max = min(sum_xy, n - 1)
         x_min = sum_xy - x_max
         for x in range(x_max, x_min - 1, -1):
