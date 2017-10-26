@@ -58,10 +58,21 @@ def calc():
         m.append(l)
 
     c = 1
-    for i in range(n):
-        y = i - x
-        m[x][y] = c
-        c = c + 1
+    for sum_xy in range(2 * n - 1):
+        x_max = min(sum_xy, n - 1)
+        x_min = sum_xy - x_max
+        for x in range(x_max, x_min - 1, -1):
+            y = sum_xy - x
+            m[y][x] = c
+            c = c + 1
+    for l in m:
+        l.reverse()
+        s = ''
+        for i in l:
+            s = s + str(i) + ' '
+        s = s[:-1]
+        print s
+
 
 if __name__ == '__main__':
     calc()
