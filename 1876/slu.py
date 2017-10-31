@@ -36,6 +36,9 @@ def calc():
     a, b = sys.stdin.readline().strip('\r\n').split(' ')
     a = int(a)
     b = int(b)
+    # case 1: take all right shoes first (b * 2), then take 40 left shoes (40)
+    # case 2: take 39 right shoes first (39 * 2), then take all left shoes (40 + (a - 40) * 2)
+    #         take last right shoes in the end (1)
     t = max(b * 2 + 40, 39 * 2 + 40 + (a - 40) * 2 + 1)
     print t
 
