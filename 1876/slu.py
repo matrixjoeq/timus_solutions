@@ -36,7 +36,7 @@ def calc():
     a, b = sys.stdin.readline().strip('\r\n').split(' ')
     a = int(a)
     b = int(b)
-    t = b * 2 + 40
+    t = max(b * 2 + 40, 39 * 2 + 40 + (a - 40) * 2 + 1)
     print t
 
 if __name__ == '__main__':
