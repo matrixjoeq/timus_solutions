@@ -44,6 +44,31 @@ def calc():
     n, k = sys.stdin.readline().strip('\r\n').split(' ')
     n = int(n)
     k = int(k)
+    records = []
+    flag = False
+    while (n > 0):
+        n = n - 1
+        a, b = sys.stdin.readline().strip('\r\n').split(' ')
+        a = int(a)
+        b = int(b)
+        if (a - b != 2 and not flag):
+            flag = True
+        if (flag):
+            records.append((a, b))
+
+    expected = k
+    actual = 0
+    count = 1
+    for t in records:
+        expected = expected + t[0]
+        actual = actual + t[1]
+        count = count + 1
+
+    r = expected - 2 * count - actual
+    if (r >= 0):
+        print r
+    else:
+        print 'Big Bang!'
 
 
 if __name__ == '__main__':
