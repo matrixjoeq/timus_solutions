@@ -51,10 +51,20 @@ into effect any decision.
 import sys;
 import math;
 
+def compare(x, y):
+    x = int(x)
+    y = int(y)
+    if (x > y):
+        return 1
+    elif (x < y):
+        return -1
+    else:
+        return 0
+
 def calc():
     k = int(sys.stdin.readline())
     groups = sys.stdin.readline().strip('\r\n').split(' ')
-    groups.sort()
+    groups.sort(compare)
     r = 0
     half_group = int(k / 2) + 1
     for i in range(half_group):
