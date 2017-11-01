@@ -38,11 +38,13 @@ def get_factors(n):
     return f
 
 def get_result(n):
-    if (n == 0 or n == 1):
+    if (n == 0):
+        return 10
+    elif (n >= 1 and n <= 9):
         return n
     else:
         f = get_factors(n)
-        print f
+        #print f
         r = ''
         keys = f.keys()
         keys.sort()
@@ -53,8 +55,9 @@ def get_result(n):
         return int(r)
 
 def calc():
-    n = int(sys.stdin.readline())
+    n = int(sys.stdin.readline().strip('\r\n'))
     r = get_result(n)
+    #print '{0} : {1}'.format(n, r)
     print r
 
 if __name__ == '__main__':
