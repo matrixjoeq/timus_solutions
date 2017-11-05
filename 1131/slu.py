@@ -39,7 +39,25 @@ def get_int_from_stdin():
     return int(get_str_from_stdin())
 
 def calc():
-    pass
+    n, k = sys.stdin.readline().strip('\r\n').split(' ')
+    n = int(n)
+    k = int(k)
+    r = 0
+
+    m = int(math.log(k, 2))
+    n_m = int(math.pow(2, m + 1))
+    if (n >= n_m):
+        r = m + 1
+        y = n - n_m
+        r = r + int(y / k)
+        if (y % k > 0):
+            r = r + 1
+    else:
+        y = math.log(n, 2)
+        r = int(y)
+        if (r < y):
+            r = r + 1
+    print r
 
 if __name__ == '__main__':
     calc()
