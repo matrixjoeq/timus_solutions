@@ -29,36 +29,40 @@ You are to output the minimal time (in hours) necessary for copying of the
 program to all the computers.
 '''
 
-import sys;
-import math;
+import sys
+import math
+
 
 def get_str_from_stdin():
     return sys.stdin.readline().strip('\r\n')
 
+
 def get_int_from_stdin():
     return int(get_str_from_stdin())
 
-def calc():
-    n, k = sys.stdin.readline().strip('\r\n').split(' ')
-    n = int(n)
-    k = int(k)
+
+def calc(line):
+    n, k = line.split(' ')
+    n = long(n)
+    k = long(k)
     r = 0
 
-    m = int(math.log(k, 2))
-    n_m = int(math.pow(2, m + 1))
-    if (n >= n_m):
-        r = m + 1
-        y = n - n_m
-        r = r + int(y / k)
-        if (y % k > 0):
+    if (n >= 2 * k):
+        r = int(math.log(k, 2))
+        fin = 1 << r
+        if (fin <= k):
+            r = r + 1
+        left = n - (1 << r)
+        r = r + (left / k)
+        if (left % k):
             r = r + 1
     else:
-        y = math.log(n, 2)
-        r = int(y)
-        if (r < y):
+        r = int(math.log(n, 2))
+        if ((1 << r) < n):
             r = r + 1
     print r
 
-if __name__ == '__main__':
-    calc()
 
+if __name__ == '__main__':
+    for line in sys.stdin:
+        calc(line.strip('\r\n'))
