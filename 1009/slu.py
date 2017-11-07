@@ -27,14 +27,25 @@ The result in decimal notation.
 import sys
 import math
 
+def get_str_from_stdin():
+    return sys.stdin.readline().strip('\r\n')
+
+
 def get_int_from_stdin():
-    return int(sys.stdin.readline().strip('\r\n'))
+    return int(get_str_from_stdin())
+
+
+def f(n, k):
+    if n == 1:
+        return k - 1
+    return (f(n - 1, k) * (k - 1) + int(math.pow(k - 1, n - 1)))
+
 
 def calc():
     n = get_int_from_stdin()
     k = get_int_from_stdin()
+    print f(n, k)
 
 
 if __name__ == '__main__':
     calc()
-
