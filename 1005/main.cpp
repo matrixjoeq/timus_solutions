@@ -43,6 +43,14 @@ void get_combinations(int* weights, int n, std::vector<int>& comb)
     comb.erase(last, comb.end());
 }
 
+/*
+ * At first, I though about greedy method to get the answer.
+ * However, greedy way does not always give me the best answer when all stones
+ * are counted. It may give a partial optimal solution and a close answer in 
+ * the end. But not THE optimal solution.
+ * So, at last, I decide to use brute force method to get all the possible answers.
+ * Although accepted, this seems not the best way.
+ */
 int main()
 {
     int n = 0;
