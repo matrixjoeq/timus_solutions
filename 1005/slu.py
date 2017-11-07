@@ -20,11 +20,32 @@ Your program should output a number representing the minimal possible weight
 difference between stone piles.
 '''
 
-import sys;
-import math;
+import sys
+import math
+
+
+def get_str_from_stdin():
+    return sys.stdin.readline().strip('\r\n')
+
 
 def get_int_from_stdin():
-    return int(sys.stdin.readline().strip('\r\n')
+    return int(get_str_from_stdin())
+
+
+def get_combinations(pile):
+    n = len(pile)
+    comb = []
+    for mask in range(1, 1 << n + 1):
+        v = 0
+        for i in range(n):
+            if (1 << i) & mask:
+                v = v + pile[i]
+        if v not in comb:
+            comb.append(v)
+    comb.sort()
+
+    return comb
+
 
 def calc():
     n = get_int_from_stdin()
@@ -32,17 +53,16 @@ def calc():
     for i in range(n):
         weights[i] = int(weights[i])
 
-    weights.sort(reverse=True)
-    if (n == 1):
-        print weights[0]
-    elif (n == 2):
-        print (weights[0] - weights[1])
-    elif (n == 3):
-        print abs(weights[0] - weights[1] - weights[2])
-    else:
-
+    comb = get_combinations(weights)
+    #print comb
+    total = sum(weights)
+    for i in range(int(total / 2), -1, -1):
+        if i in comb:
+            j = total - i
+            d = abs(i - j)
+            print d
+            return
 
 
 if __name__ == '__main__':
     calc()
-
