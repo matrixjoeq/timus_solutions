@@ -40,12 +40,13 @@ static void get_inputs(Container& c)
     typedef typename Container::value_type T;
 
     string line;
-    getline(cin, line);
-    istringstream input(line);
+    while (getline(cin, line)) {
+        istringstream input(line);
 
-    T x;
-    while (input >> x) {
-        c.push_back(x);
+        T x;
+        while (input >> x) {
+            c.push_back(x);
+        }
     }
 }
 
