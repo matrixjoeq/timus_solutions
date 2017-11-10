@@ -78,42 +78,46 @@ static typename Container::value_type get_max(Container& c)
 // prime numbers
 static int guess_range(int n)
 {
-     // TODO
-     return 0;
+    int r = 2;
+    while (r / log1p(r - 1) < n) ++r;
+    return static_cast<int>(r * 1.15);
 }
 
-// the 15000th prime number is 163841
-static bool s_numbers[163841 + 1]; // [0, x]
-static vector<int> s_primes;
-#define ARRAY_LENGTH(x) (sizeof((x)) / sizeof((x)[0]))
 
-static int get_next_prime(int p)
+static int get_next_prime(int p, bool* p_numbers, size_t size)
 {
-    for (int i = p + 1; i < ARRAY_LENGTH(s_numbers); ++i) {
-        if (s_numbers[i]) return i;
+    for (int i = p + 1; i < size; ++i) {
+        if (*(p_numbers + i)) return i;
     }
 
     return -1;
 }
 
 
-static void pick_prime_numbers(int x)
+static void pick_prime_numbers(int x, vector<int>& v_primes)
 {
-    x = ARRAY_LENGTH(s_numbers) - 1;
-    memset(s_numbers, 1, sizeof(s_numbers));
-    s_numbers[0] = false;
-    s_numbers[1] = false;
+    bool* p_numbers = new bool[x + 1];
+    memset(p_numbers, 1, sizeof(bool) * (x + 1));
+
+    bool* p_n = p_numbers;
+    *p_n++ = false; // set 0 to false
+    *p_n++ = false; // set 1 to false
     
     int p = 1;
-    while (((p = get_next_prime(p)) != -1) && (p * p <= x)) {
+    while (((p = get_next_prime(p, p_numbers, x + 1)) != -1) && (p * p <= x)) {
         for (int i = p + 1; i <= x; ++i) {
-            if (i % p == 0) s_numbers[i] = false;
+            if (i % p == 0) *(p_numbers + i) = false;
         }
     }
 
-    for (int i = 2; i <= x; ++i) {
-        if (s_numbers[i]) s_primes.push_back(i);
+    for (p_n = p_numbers + 2; p_n <= p_numbers + x; ++p_n) {
+        if (*p_n) {
+            int prime = static_cast<int>(p_n - p_numbers);
+            v_primes.push_back(prime);
+        }
     }
+
+    delete[] p_numbers;
 }
 
 
@@ -125,9 +129,14 @@ int main()
     vector<int> v_nth;
     get_inputs(v_nth);
 
-    pick_prime_numbers(0);
+    int max_nth = get_max(v_nth);
+    int range_x = guess_range(max_nth);
+
+    vector<int> v_primes;
+    v_primes.reserve(range_x / log1p(range_x - 1));
+    pick_prime_numbers(range_x, v_primes);
     for (vector<int>::iterator it = v_nth.begin(); it != v_nth.end(); ++it) {
-        cout << s_primes[*it - 1] << endl;
+        cout << v_primes[*it - 1] << endl;
     }
 
     return 0;
