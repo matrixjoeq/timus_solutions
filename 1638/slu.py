@@ -27,12 +27,31 @@ started its route, and the number of the volume where it stopped.
 Output the length of the worm's route.
 '''
 
-import sys;
-import math;
+import sys
+import math
+
+
+def get_str_from_stdin():
+    return sys.stdin.readline().strip('\r\n')
+
+
+def get_int_from_stdin():
+    return int(get_str_from_stdin())
+
 
 def calc():
-    pass
+    w, c, s, e = get_str_from_stdin().split(' ')
+    w = int(w)
+    c = int(c)
+    s = int(s)
+    e = int(e)
+    if s > e:
+        print (s - e + 1) * (w + 2 * c) - 2 * c
+    elif e > s:
+        print (e - s - 1) * (w + 2 * c) + 2 * c
+    else:
+        print w
+
 
 if __name__ == '__main__':
     calc()
-
