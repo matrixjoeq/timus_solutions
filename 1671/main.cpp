@@ -219,7 +219,21 @@ public:
     void DFS()
     {
         cc_count_ = 0;
+        std::list<uint32_t> visited;
+        std::stack<uint32_t> visit_stack;
+        for (VertexMap::iterator it = vertices_.begin(); it != vertices_.end(); ++it) {
+            if (std::find(visited.begin(), visited.end(), it->first) != visited.end()) {
+                continue;
+            }
+            
+            ++cc_count_;
+            visited.push_back(it->first);
+            visit_stack.push(it->first);
 
+            while (!visti_stack.empty()) {
+                std::list<uint32_t> neighbours;
+            }
+        }
     }
 
     uint32_t GetConnectedComponentCount()
