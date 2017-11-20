@@ -71,22 +71,18 @@ static void get_inputs(Container& c)
     }
 }
 
-struct NullType
-{
-};
-
 class Vertex
 {
 public:
     typedef std::map<uint32_t, uint32_t> NeighbourMap;
-    typedef std::list<uint32_t> NeighbourList;
+    typedef std::vector<uint32_t> NeighbourList;
 
     Vertex() : id_(0) {}
 
     explicit Vertex(uint32_t id) : id_(id) {}
 
     Vertex(const Vertex& other)
-     : id_(other.id_)
+     : id_(other.id_), neighbours_(other.neighbours_)
     {}
 
     ~Vertex() {}
@@ -120,6 +116,7 @@ public:
     void GetNeighbours(NeighbourList& l)
     {
         l.clear();
+        l.reserve(neighbours_.size());
         for (NeighbourMap::iterator it = neighbours_.begin();
              it != neighbours_.end();
              ++it)
@@ -143,7 +140,18 @@ public:
         if (this != &other) 
         {
             id_ = other.id_;
+            neighbours_ = other.neighbours_;
         }
+    }
+
+    bool operator<(const Vertex& other) const
+    {
+        return id_ < other.id_;
+    }
+
+    bool operator==(const Vertex& other) const
+    {
+        return id_ == other.id_;
     }
 
 private:
@@ -151,10 +159,35 @@ private:
     NeighbourMap neighbours_;
 };
 
+struct Edge
+{
+    Edge() : from(0), to(0), weight(0) {}
+    Edge(uint32_t f, uint32_t t, uint32_t w) : from(f), to(t), weight(w) {}
+    Edge(const Edge& other) : from(other.from), to(other.to), weight(other.weight) {}
+    Edge& operator=(const Edge& other)
+    {
+        if (this != &other)
+        {
+            from = other.from;
+            to = other.to;
+            weight = other.weight;
+        }
+
+        return *this;
+    }
+
+    uint32_t from;
+    uint32_t to;
+    uint32_t weight;
+};
+
 class Graph
 {
 public:
     typedef std::map<uint32_t, Vertex> VertexMap;
+    typedef typename VertexMap::iterator VertexIter;
+    typedef std::vector<Vertex> VertexList;
+    typedef std::vector<Edge> EdgeList;
 
     Graph() : id_gen_(0) {}
     ~Graph() {}
@@ -183,12 +216,18 @@ public:
         m = vertices_;
     }
 
+    void GetVertices(VertexList& l)
+    {
+        for (VertexIter it = vertices_.begin(); it != vertices_.end(); ++it)
+        {
+            l.push_back(it->second);
+        }
+    }
+
     void DumpVertices()
     {
         std::cout << "Graph vertices: ";
-        for (typename VertexMap::iterator it = vertices_.begin();
-             it != vertices_.end();
-             ++it)
+        for (VertexIter it = vertices_.begin(); it != vertices_.end(); ++it)
         {
             std::cout << it->first << ' ';
         }
@@ -221,17 +260,34 @@ public:
         return vertices_[from_id].RemoveNeighbour(to_id);
     }
 
+    void GetEdges(EdgeList& l)
+    {
+        for (VertexIter it = vertices_.begin(); it != vertices_.end(); ++it)
+        {
+            Vertex::NeighbourMap m;
+            it->second.GetNeighbours(m);
+            for (Vertex::NeighbourMap::iterator nit = m.begin(); nit != m.end(); ++nit)
+            {
+                uint32_t from = it->second.GetId();
+                uint32_t to = nit->first;
+                uint32_t weight = nit->second;
+                Edge e(from, to, weight);
+                l.push_back(e); 
+            }
+        }
+    }
+
     void DumpEdges()
     {
         std::cout << "Graph edges: " << std::endl;
-        for (typename VertexMap::iterator it = vertices_.begin();
-             it != vertices_.end();
-             ++it)
+        for (VertexIter it = vertices_.begin(); it != vertices_.end(); ++it)
         {
             std::cout << "from: " << it->first << ", to: ";
-            std::list<uint32_t> n;
-            it->second.GetNeighbours(n);
-            for (std::list<uint32_t>::iterator it = n.begin(); it != n.end(); ++it)
+            Vertex::NeighbourList neighbours;
+            it->second.GetNeighbours(neighbours);
+            for (Vertex::NeighbourList::iterator it = neighbours.begin();
+                 it != neighbours.end();
+                 ++it)
             {
                 std::cout << *it << ' ';
             }
@@ -245,51 +301,30 @@ public:
         cc_count_ = 0;
         std::vector<bool> visited(vertices_.size() + 1, false);
         std::stack<uint32_t> visit_stack;
-        for (typename VertexMap::iterator it = vertices_.begin();
-             it != vertices_.end();
-             ++it)
+        for (VertexIter it = vertices_.begin(); it != vertices_.end(); ++it)
         {
-            /*
-            if (std::find(visited.begin(), visited.end(), it->first) != visited.end()) 
-            {
-                continue;
-            }
-            */
             if (visited[it->first]) continue;
             
             ++cc_count_;
-            //std::cout << "unvisited node found: " << it->first << std::endl;
-            //visited.push_back(it->first);
             visited[it->first] = true;
             visit_stack.push(it->first);
 
-            std::list<uint32_t> neighbours;
+            Vertex::NeighbourList neighbours;
             uint32_t vid;
             bool all_neighbours_visited;
             while (!visit_stack.empty()) 
             {
                 vid = visit_stack.top();
                 vertices_[vid].GetNeighbours(neighbours);
-                /*
-                std::cout << "neighbours of: " << vid << std::endl;
-                for (std::list<uint32_t>::iterator it = neighbours.begin();
-                     it != neighbours.end(); ++it)
-                {
-                    std::cout << *it << ' ';
-                }
-                std::cout << std::endl;
-                */
-                     
+                    
                 all_neighbours_visited = true;
-                for (std::list<uint32_t>::iterator it = neighbours.begin();
+                for (Vertex::NeighbourList::iterator it = neighbours.begin();
                      it != neighbours.end();
                      ++it)
                 {
-                    //if (std::find(visited.begin(), visited.end(), *it) == visited.end())
                     if (!visited[*it])
                     {
                         all_neighbours_visited = false;
-                        //visited.push_back(*it);
                         visited[*it] = true;
                         visit_stack.push(*it);
                         break;
@@ -317,6 +352,94 @@ private:
 };
 
 
+template<typename Rank, typename Parent>
+class DisjointSet
+{
+public:
+    DisjointSet(Rank r, Parent p) : rank_(r), parent_(p) {}
+    ~DisjointSet() {}
+
+    DisjointSet(const DisjointSet& other)
+      : rank_(other.rank_),
+        parent_(other.parent_)
+    {}
+
+    template<typename Element>
+    void MakeSet(Element x)
+    {
+        parent_[x] = x;
+        typedef typename Rank::value_type::second_type R;
+        rank_[x] = R();
+    }
+
+    template<typename Element>
+    void LinkSet(Element x, Element y)
+    {
+        if (x == y) return;
+
+        if (rank_[x] > rank_[y])
+        {
+            parent_[y] = x;
+        }
+        else if (rank_[y] > rank_[x])
+        {
+            parent_[x] = y;
+        }
+        else
+        {
+            parent_[y] = x;
+            ++rank_[x];
+        }
+    }
+
+    template<typename Element>
+    void UnionSet(Element x, Element y)
+    {
+        LinkSet(FindSet(x), FindSet(y));
+    }
+
+    template<typename Element>
+    Element FindSet(Element x)
+    {
+        typedef std::list<Element> ElementList;
+
+        ElementList l;
+        while (!(parent_[x] == x))
+        {
+            l.push_back(x);
+            x = parent_[x];
+        }
+
+        for (typename ElementList::iterator it = l.begin();
+             it != l.end();
+             ++it)
+        {
+            parent_[*it] = x;
+        }
+
+        return x;
+    }
+
+    template<typename ElementIterator>
+    std::size_t CountSet(ElementIterator first, ElementIterator last)
+    {
+        std::size_t count = 0;
+        for (; first != last; ++first)
+        {
+            if (parent_[*first] == *first)
+            {
+                ++count;
+            }
+        }
+
+        return count;
+    }
+
+private:
+    Rank rank_;
+    Parent parent_;
+};
+
 static void get_n_m(uint32_t& n, uint32_t& m)
 {
     string line;
@@ -340,6 +463,7 @@ static void get_edges(Seq& edges, uint32_t m)
 {
     typedef typename Seq::value_type ValueType;
 
+    edges.reserve(m * 2);
     while (m--)
     {
         string line = "";
@@ -372,6 +496,7 @@ static void add_edges(Graph& g, Seq& edges)
 
 int main()
 {
+    // setup the graph
     uint32_t n, m;
     get_n_m(n, m);
 
@@ -381,15 +506,7 @@ int main()
 
     vector<uint32_t> edges;
     get_edges(edges, m);
-    /*
-    cout << "origin edges: " << endl;
-    for (vector<uint32_t>::iterator it = edges.begin(); it != edges.end(); ++it)
-    {
-        cout << *it << ' ';
-    }
-    cout << endl;
-    */
-
+    
     add_edges(g, edges);
     //g.DumpEdges();
 
@@ -399,24 +516,67 @@ int main()
     list<uint32_t> threads;
     get_inputs(threads);
 
-    list<uint32_t>::iterator it = threads.begin();
-    while (q--)
+    // jump to last state
+    for (list<uint32_t>::iterator it = threads.begin();
+         it != threads.end();
+         ++it)
     {
         uint32_t from = edges[2 * (*it - 1)];
         uint32_t to = edges[2 * (*it - 1) + 1];
         g.RemoveEdge(from, to);
         g.RemoveEdge(to, from);
-        uint32_t c = g.GetConnectedComponentCount();
-        cout << c;
-        if (q)
-        {
+    }
+    
+    // setup the disjoint set with last state
+    typedef std::map<Vertex, uint32_t> Rank;
+    typedef std::map<Vertex, Vertex> Parent;
+    Rank r;
+    Parent p;
+    DisjointSet<Rank, Parent> dset(r, p);
+    Graph::VertexList vertices;
+    g.GetVertices(vertices);
+    for (Graph::VertexList::iterator it = vertices.begin();
+         it != vertices.end(); 
+         ++it)
+    {
+        dset.MakeSet(*it);
+    }
+
+    Graph::EdgeList graph_edges;
+    g.GetEdges(graph_edges);
+    for (Graph::EdgeList::iterator it = graph_edges.begin();
+         it != graph_edges.end();
+         ++it)
+    {
+        dset.UnionSet(g.GetVertex(it->from), g.GetVertex(it->to));
+    }
+
+    // calculate the connected component in reverse order
+    stack<size_t> pieces;
+    size_t c = dset.CountSet(vertices.begin(), vertices.end());
+    pieces.push(c);
+    for (list<uint32_t>::reverse_iterator it = threads.rbegin();
+         it != threads.rend();
+         ++it)
+    {
+        uint32_t from = edges[2 * (*it - 1)];
+        uint32_t to = edges[2 * (*it - 1) + 1];
+        dset.UnionSet(g.GetVertex(from), g.GetVertex(to));
+        c = dset.CountSet(vertices.begin(), vertices.end());
+        pieces.push(c);
+    }
+
+    // first one is not needed
+    pieces.pop();
+    while (!pieces.empty())
+    {
+        size_t piece = pieces.top();
+        pieces.pop();
+        cout << piece;
+        if (!pieces.empty())
             cout << ' ';
-        }
         else
-        {
             cout << endl;
-        }
-        ++it;
     }
 
     return 0;
