@@ -45,6 +45,7 @@
 #include <queue>
 #include <stack>
 #include <algorithm>
+#include <utility>
 
 using namespace std;
 
@@ -52,10 +53,13 @@ using namespace std;
 template<typename T>
 static void get_single_input(T& x)
 {
-    cin >> x;
+    string line;
+    getline(cin, line);
+    istringstream input(line);
+    input >> x;
 }
 
-// Get a line input from stdin
+// Get all lines input from stdin
 // Add the values as elements in Container
 template<typename Container>
 static void get_inputs(Container& c)
@@ -73,8 +77,90 @@ static void get_inputs(Container& c)
     }
 }
 
+// Get one line input from stdin
+// Add the values as elements in container
+template<typename Container>
+static void get_line_input(Container& c)
+{
+    typedef typename Container::value_type T;
+
+    string line;
+    getline(cin, line);
+    istringstream input(line);
+    T x;
+    while (input >> x)
+    {
+        c.push_back(x);
+    }
+}
+
+typedef multimap<uint32_t, uint32_t> DataMap;
+typedef typename DataMap::value_type DataValue;
+typedef typename DataMap::iterator DataMapIter;
+
+template<typename Container>
+static void setup_statistics(DataMap& m, Container& data)
+{
+    typedef typename Container::value_type T;
+    typedef typename Container::iterator DataIter;
+
+    uint32_t number = 1;
+    for (DataIter it = data.begin(); it != data.end(); ++it)
+    {
+        DataValue v = make_pair(*it, number);
+        m.insert(v);
+        ++number;
+    }
+}
+
+static int query(DataMap& m, uint32_t l, uint32_t r, uint32_t x)
+{
+    pair<DataMapIter, DataMapIter> range = m.equal_range(x);
+    for (DataMapIter it = range.first; it != range.second; ++it)
+    {
+        if (it->first == x && it->second >= l && it->second <= r)
+            return 1;
+    }
+
+    return 0;
+}
+
+template<typename Container>
+static void make_query(DataMap& m, Container& data, uint32_t q)
+{
+    typedef typename Container::value_type T;
+    typedef typename Container::iterator DataIter;
+
+    DataIter it = data.begin();
+    while (q--)
+    {
+        uint32_t l = *it++;
+        uint32_t r = *it++;
+        uint32_t x = *it++;
+        cout << query(m, l, r, x);
+    }
+    cout << endl;
+}
+
 int main()
 {
+    uint32_t n;
+    get_single_input(n);
+
+    vector<uint32_t> data;
+    get_line_input(data);
+
+    DataMap data_map;
+    setup_statistics(data_map, data);
+       
+    uint32_t q;
+    get_single_input(q);
+
+    vector<uint32_t> query_data;
+    get_inputs(query_data);
+
+    make_query(data_map, query_data, q);
+
     return 0;
 }
 
