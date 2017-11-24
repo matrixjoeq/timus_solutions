@@ -42,6 +42,8 @@
 #include <list>
 #include <map>
 #include <set>
+#include <unordered_map>
+#include <unordered_set>
 #include <queue>
 #include <stack>
 #include <algorithm>
@@ -49,9 +51,36 @@
 
 using namespace std;
 
+struct CityStatistic
+{
+    CityStatistic() : id(0), stat(0) {}
+    CityStatistic(uint32_t id_, uint32_t stat_) : id(id_), stat(stat_) {}
+    CityStatistic(const CityStatistic& other)
+        : id(other.id), stat(other.stat)
+    {}
+
+    CityStatistic& operator=(const CityStatistic& other)
+    {
+        if (this != &other)
+        {
+            id = other.id;
+            stat = other.stat;
+        }
+        return *this;
+    }
+
+    bool operator<(const CityStatistic& other) const
+    {
+        return stat < other.stat;
+    }
+
+    uint32_t id;
+    uint32_t stat;
+};
+
 // Get a single input from stdin
 template<typename T>
-static void get_single_input(T& x)
+static inline void get_single_input(T& x)
 {
     string line;
     getline(cin, line);
@@ -94,35 +123,75 @@ static void get_line_input(Container& c)
     }
 }
 
-typedef multimap<uint32_t, uint32_t> DataMap;
+static inline void get_single_uint(uint32_t& x)
+{
+    scanf("%u", &x);
+}
+
+template<typename ForwardIterator>
+static void get_n_uint(uint32_t n, ForwardIterator i)
+{
+    uint32_t x;
+    while (n--)
+    {
+        get_single_uint(x);
+        *i++ = x;
+    }
+}
+
+typedef vector<CityStatistic> DataMap;
 typedef typename DataMap::value_type DataValue;
 typedef typename DataMap::iterator DataMapIter;
 
-template<typename Container>
-static void setup_statistics(DataMap& m, Container& data)
+static void setup_statistics(DataMap& m, uint32_t n)
 {
-    typedef typename Container::value_type T;
-    typedef typename Container::iterator DataIter;
-
-    uint32_t number = 1;
-    for (DataIter it = data.begin(); it != data.end(); ++it)
+    m.reserve(n);
+    uint32_t x;
+    for (uint32_t i = 1; i <= n; ++i)
     {
-        DataValue v = make_pair(*it, number);
-        m.insert(v);
-        ++number;
+        get_single_uint(x);
+        CityStatistic cs(i, x);
+        m.push_back(cs);
+    }
+
+    printf("origin data\n");
+    for (DataMapIter it = m.begin(); it != m.end(); ++it)
+    {
+        printf("c: %u, s: %u\n", it->id, it->stat);
+    }
+
+    make_heap(m.begin(), m.end());
+    sort_heap(m.begin(), m.end());
+    
+    printf("sorted data\n");
+    for (DataMapIter it = m.begin(); it != m.end(); ++it)
+    {
+        printf("c: %u, s: %u\n", it->id, it->stat);
     }
 }
 
 static int query(DataMap& m, uint32_t l, uint32_t r, uint32_t x)
 {
-    pair<DataMapIter, DataMapIter> range = m.equal_range(x);
-    for (DataMapIter it = range.first; it != range.second; ++it)
+    printf("query: %u\n", x);
+    CityStatistic cs(0, x);
+    DataMapIter bound = lower_bound(m.begin(), m.end(), cs);
+    if (bound == m.end())
     {
-        if (it->first == x && it->second >= l && it->second <= r)
-            return 1;
+        printf("no lower bound found\n");
+        return 0;
     }
+    else 
+    {
+        printf("lower bound: %u %u\n", bound->id, bound->stat);
+        while (bound->stat == x)
+        {
+            if (bound->id >= l && bound->id <= r)
+                return 1;
+            ++bound;
+        }
 
-    return 0;
+        return 0;
+    }
 }
 
 template<typename Container>
@@ -145,19 +214,29 @@ static void make_query(DataMap& m, Container& data, uint32_t q)
 int main()
 {
     uint32_t n;
-    get_single_input(n);
+    get_single_uint(n);
 
-    vector<uint32_t> data;
-    get_line_input(data);
-
-    DataMap data_map;
-    setup_statistics(data_map, data);
+    vector<CityStatistic> data_map;
+    setup_statistics(data_map, n);
        
     uint32_t q;
-    get_single_input(q);
+    get_single_uint(q);
+    printf("q: %u\n", q);
 
-    vector<uint32_t> query_data;
-    get_inputs(query_data);
+    vector<uint32_t> query_data(q * 3);
+    for (vector<uint32_t>::iterator it = query_data.begin(); it != query_data.end(); ++it)
+    {
+        uint32_t x;
+        get_single_uint(x);
+        printf("x: %u\n");
+        *it = x;
+    }
+
+    vector<uint32_t>::iterator it = query_data.begin();
+    while (it != query_data.end());
+    {
+        printf("%u %u %u\n", *it++, *it++, *it++);
+    }
 
     make_query(data_map, query_data, q);
 
