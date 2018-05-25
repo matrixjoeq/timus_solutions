@@ -39,8 +39,138 @@ of it. The contestants must be ordered lexicographically.
 import sys;
 import math;
 
+class Graph:
+    def __init__(self, directed = False, graph = None):
+        self.__directed = directed
+        if graph is None:
+            self.__graph = {}
+        else:
+            self.__graph = graph
+
+    def get_vertexs(self):
+        return self.__graph.keys()
+
+
+    def get_edges(self):
+        def __generate_edges(graph):
+            edges = []
+            for v in graph.keys():
+                for n in graph[v]:
+                    if {n, v} not in edges:
+                        edges.append({v, n})
+            return edges
+        return __generate_edges(self.__graph)
+
+
+    def add_vertex(self, v):
+        ''' 
+        Add a vertex to graph
+        @param v vertex to be added
+        @return nothing 
+        '''
+        if v not in self.__graph.keys():
+            self.__graph[v] = []
+
+
+    def add_edge(self, begin, end):
+        '''
+        Add an edge to graph
+        @param begin begin vertex of the edge
+        @param end end vertex of the edge
+        @return nothing
+        '''
+
+        def _add_edge(g, b, e):
+            if b in g.keys():
+                if e not in g[b]:
+                    g[b].append(e)
+            else:
+                g[b] = [e]
+
+        
+        _add_edge(self.__graph, begin, end)
+        if not self.__directed:
+            _add_edge(self.__graph, end, begin)
+
+
+    def find_all_paths(self, begin, end):
+        '''
+        Find all paths from begin to end
+        @param begin begin vertex of the path
+        @param end end vertex of the path
+        @return None if no path, list of all paths otherwise
+        '''
+
+        def _find_all_paths(graph, begin, end, path = []):
+            path = path + [begin]
+            if begin not in graph.keys():
+                return []
+            if begin == end:
+                return [path]
+
+            paths = []
+            for vertex in graph[begin]:
+                if vertex not in path:
+                    newpaths = _find_all_paths(graph, vertex, end, path)
+                    for newpath in newpaths:
+                        paths.append(newpath)
+            return paths
+
+        return _find_all_paths(self.__graph, begin, end)
+
+
+    def find_shortest_path(self, begin, end):
+        '''
+        Find the shortest path from begin to end
+        @param begin begin vertex of the path
+        @param end end vertex of the path
+        @return None if no path found, shortest path otherwise
+        '''
+        paths = find_all_paths(self, begin, end)
+        shortest = None
+        for path in paths:
+            if shortest is None:
+                shortest = path
+            else:
+                if len(path) < len(shortest):
+                    shortest = path
+
+        return shortest
+
+
+def get_str_from_stdin():
+    return sys.stdin.readline().strip('\r\n')
+
+
+def get_int_from_stdin():
+    return int(get_str_from_stdin())
+
+
+def get_input():
+    n = 0
+    i = 0
+    g = Graph()
+    for line in sys.stdin:
+        if n == 0:
+            n = int(line.strip('\r\n'))
+            continue
+
+        i = i + 1
+        if i > n:
+            break;
+
+        names = line.split(' ')
+        g.add_edge(names[0], names[1])
+        g.add_edge(names[0], names[2])
+        g.add_edge(names[1], names[2])
+
+    return g
+
+
 def calc():
-    pass
+    g = get_input()
+    print g.get_edges()
+
 
 if __name__ == '__main__':
     calc()
