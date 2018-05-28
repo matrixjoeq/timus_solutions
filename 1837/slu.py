@@ -36,6 +36,7 @@ and Isenbaev's number. If the number is undefined, output “undefined” instea
 of it. The contestants must be ordered lexicographically.
 '''
 
+from __future__ import print_function
 import sys;
 import math;
 
@@ -126,7 +127,7 @@ class Graph:
         @param end end vertex of the path
         @return None if no path found, shortest path otherwise
         '''
-        paths = find_all_paths(self, begin, end)
+        paths = self.find_all_paths(begin, end)
         shortest = None
         for path in paths:
             if shortest is None:
@@ -153,25 +154,50 @@ def get_input():
     for line in sys.stdin:
         if n == 0:
             n = int(line.strip('\r\n'))
-            continue
+            if (n <= 0):
+                break;
+            else:
+                continue        
 
-        i = i + 1
-        if i > n:
-            break;
-
-        names = line.split(' ')
+        names = line.strip('\r\n').split(' ')
+        assert len(names) == 3
         g.add_edge(names[0], names[1])
         g.add_edge(names[0], names[2])
         g.add_edge(names[1], names[2])
+        
+        i = i + 1
+        if i >= n:
+            break;        
 
     return g
 
 
-def calc():
-    g = get_input()
-    print g.get_edges()
+def calc(champion, graph):
+    r = {}
+    for v in graph.get_vertexs():
+        path = graph.find_shortest_path(champion, v)
+        if path is None:
+            r[v] = 'undefined'
+        else:
+            r[v] = len(path) - 1
+    return r
 
+
+def show_result(result):
+    names = result.keys()
+    names.sort()
+    l = len(result)
+    i = 1
+    for n in names:
+        e = None
+        if i == l:
+            e = ''
+        else:
+            e = '\n'
+        print('{0} {1}'.format(n, result[n]), end=e)
+        i = i + 1
 
 if __name__ == '__main__':
-    calc()
-
+    graph = get_input()
+    result = calc('Isenbaev', graph)
+    show_result(result)
