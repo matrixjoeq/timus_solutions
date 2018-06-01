@@ -40,27 +40,16 @@ from __future__ import print_function
 import sys;
 import math;
 
-class Graph:
-    def __init__(self, directed = False, graph = None):
-        self.__directed = directed
+class UndirectedGraph:
+    def __init__(self, graph = None):
         if graph is None:
             self.__graph = {}
         else:
             self.__graph = graph
 
+
     def get_vertexs(self):
         return self.__graph.keys()
-
-
-    def get_edges(self):
-        def __generate_edges(graph):
-            edges = []
-            for v in graph.keys():
-                for n in graph[v]:
-                    if {n, v} not in edges:
-                        edges.append({v, n})
-            return edges
-        return __generate_edges(self.__graph)
 
 
     def add_vertex(self, v):
@@ -69,40 +58,38 @@ class Graph:
         @param v vertex to be added
         @return nothing 
         '''
-        if v not in self.__graph.keys():
-            self.__graph[v] = []
+        if v in self.__graph.keys():
+            return
+        
+        self.__graph[v] = {}
+        for k in self.__graph.keys():
+            self.__graph[k][v] = 0
+            self.__graph[v][k] = 0
 
 
-    def add_edge(self, begin, end):
+    def add_edge(self, x, y):
         '''
         Add an edge to graph
-        @param begin begin vertex of the edge
-        @param end end vertex of the edge
+        @param x one vertex of the edge
+        @param y another vertex of the edge
         @return nothing
         '''
 
-        def _add_edge(g, b, e):
-            if b in g.keys():
-                if e not in g[b]:
-                    g[b].append(e)
-            else:
-                g[b] = [e]
-
-        
-        _add_edge(self.__graph, begin, end)
-        if not self.__directed:
-            _add_edge(self.__graph, end, begin)
+        self.add_vertex(x)
+        self.add_vertex(y)
+        self.__graph[x][y] = 1
+        self.__graph[y][x] = 1
 
 
-    def find_all_paths(self, begin, end):
+    def find_all_paths(self, x, y):
         '''
-        Find all paths from begin to end
-        @param begin begin vertex of the path
-        @param end end vertex of the path
+        Find all paths between x and y
+        @param x one vertex of the path
+        @param y another vertex of the path
         @return None if no path, list of all paths otherwise
         '''
 
-        def _find_all_paths(graph, begin, end, path = []):
+        def _find_all_paths(graph, x, y, path = []):
             path = path + [begin]
             if begin not in graph.keys():
                 return []
@@ -117,7 +104,7 @@ class Graph:
                         paths.append(newpath)
             return paths
 
-        return _find_all_paths(self.__graph, begin, end)
+        return _find_all_paths(self.__graph, x, y)
 
 
     def find_shortest_path(self, begin, end):
