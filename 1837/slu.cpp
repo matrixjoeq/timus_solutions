@@ -13,6 +13,7 @@
 #include <cinttypes>
 #include <cmath>
 
+#include <memory>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -54,123 +55,259 @@ static void get_inputs(Container& c)
     }
 }
 
+enum NODE_COLOR {
+    COLOR_WHITE,
+    COLOR_GREY,
+    COLOR_BLACK
+};
+
 template <typename Node>
-class Graph
+struct NodeHolder
 {
-public:
-    typedef set<Node> Vertexs;
-    typedef list<Node> Path;
-    typedef list<Path> Paths;
+    Node node;
+    NODE_COLOR color;
+    int32_t distance;
+    //shared_ptr<NodeHolder> parent;
 
-    typedef typename Vertexs::iterator VertexsIter;
-    typedef typename Vertexs::const_iterator VertexsConstIter;
+    NodeHolder()
+        : color(COLOR_WHITE)
+        , distance(-1)
+        //, parent()
+    {}
 
-    typedef typename Paths::iterator PathsIter;
-    typedef typename Paths::const_iterator PathsConstIter;
+    explicit NodeHolder(const Node& n)
+        : node(n)
+        , color(COLOR_WHITE)
+        , distance(-1)
+        //, parent()
+    {}
 
-    typedef typename Path::iterator PathIter;
-    typedef typename Path::const_iterator PathConstIter;
+    NodeHolder(const NodeHolder& other)
+        : node(other.node)
+        , color(other.color)
+        , distance(other.distance)
+        //, parent(other.parent)
+    {}
 
-public:
-    Vertexs getVertexs() const
+    NodeHolder& operator=(const NodeHolder& other)
     {
-        Vertexs vertexs;
-        for (GraphConstIter iter = graph_.cbegin(); iter != graph_.cend(); ++iter) {
-            vertexs.insert(iter->first);
+        if (this != &other) {
+            node = other.node;
+            color = other.color;
+            distance = other.distance;
+            //parent = other.parent;
+        }
+
+        return *this;
+    }
+
+    bool operator==(const NodeHolder& other) const
+    {
+        return (node == other.node);
+    }
+
+    bool operator<(const NodeHolder& other) const
+    {
+        return (node < other.node);
+    }
+};
+
+template <typename Node>
+class AdjacentList
+{
+private:
+    typedef shared_ptr<NodeHolder<Node> > _Node;
+    typedef set<_Node> NodeList;
+    typedef typename NodeList::iterator NodeIter;
+    typedef typename NodeList::const_iterator NodeConstIter;
+    typedef map<_Node, NodeList> NodeListMap;
+    typedef typename NodeListMap::iterator NodeMapIter;
+    typedef typename NodeListMap::const_iterator NodeMapConstIter;
+
+public:
+    set<shared_ptr<NodeHolder<Node> > > getVertexs() const
+    {
+        NodeList vertexs;
+        for (NodeMapConstIter it = list_.cbegin(); it != list_.cend(); ++it) {
+            const _Node& node = it->first;
+            if (node) {
+                vertexs.insert(node);
+            }
         }
         return vertexs;
     }
 
-    void addVertex(const Node& n)
+    shared_ptr<NodeHolder<Node> > addVertex(const Node& n)
     {
-        if (graph_.find(n) == graph_.end()) {
-            graph_[n] = Vertexs();
+        for (NodeMapConstIter it = list_.cbegin(); it != list_.cend(); ++it) {
+            const _Node& node = it->first;
+            if (node && node->node == n) {
+                return node;
+            }
+        }
+
+        _Node node = make_shared<NodeHolder<Node> >(n);
+        if (node) {
+            list_[node] = NodeList();
+        }
+        return node;
+    }
+
+    void addEdge(const Node& from, const Node& to)
+    {
+        _Node _from = addVertex(from);
+        _Node _to = addVertex(to);
+        if (_from && _to) {
+            list_[_from].insert(_to);
         }
     }
 
-    void addEdge(const Node& a, const Node& b)
+    void bfs(const Node& n)
     {
-        addEdgeInternal(a, b);
-        addEdgeInternal(b, a);
+        _Node node = reset(n);
+        if (!node) return;
+
+        queue<_Node> q;
+        q.push(node);
+
+        while (!q.empty()) {
+            _Node u = q.front();
+            q.pop();
+
+            if (!u || list_.find(u) == list_.end()) continue;
+
+            for (NodeIter v = list_[u].begin(); v != list_[u].end(); ++v) {
+                const _Node& _v = *v;
+                if (!_v) continue;
+
+                if (_v->color == COLOR_WHITE) {
+                    _v->color = COLOR_GREY;
+                    _v->distance = u->distance + 1;
+                    //_v->parent = u;
+                    q.push(_v);
+                }
+            }
+            u->color = COLOR_BLACK;
+        }
     }
 
-    Paths findAllPaths(const Node& from, const Node& to)
+    void dump() const
     {
-        Path path;
-        return findAllPathsInternal(from, to, path);
+        for (NodeMapConstIter x = list_.cbegin(); x != list_.cend(); ++x) {
+            const _Node& n = x->first;
+            if (!n) continue;
+
+            cout << n->node << ": [ ";
+            for (NodeConstIter y = x->second.cbegin(); y != x->second.cend(); ++y) {
+                if (*y) {
+                    cout << (*y)->node << " ";
+                }
+            }
+            cout << "]\n";
+        }
     }
 
-    Path findShortestPath(const Node& from, const Node& to)
+private:
+    _Node reset(const Node& n)
     {
-        Paths paths = findAllPaths(from, to);
-        Path shortest;
-        for (PathsIter iter = paths.begin(); iter != paths.end(); ++iter) {
-            if (shortest.empty()) {
-                shortest = *iter;
+        _Node node;
+        for (NodeMapIter it = list_.begin(); it != list_.end(); ++it) {
+            const _Node& _node = it->first;
+            if (!_node) continue;
+
+            if (_node->node == n) {
+                _node->color = COLOR_GREY;
+                _node->distance = 0;
+                node = _node;
             }
             else {
-                if (iter->size() < shortest.size()) {
-                    shortest = *iter;
-                }
+                _node->color = COLOR_WHITE;
+                _node->distance = -1;
             }
+            //_node->parent.reset();
         }
-
-        return shortest;
+        return node;
     }
 
 private:
-    void addEdgeInternal(const Node& a, const Node& b)
+    NodeListMap list_;
+};
+
+#if 0
+template <typename Node>
+class AdjacentMatrix
+{
+public:
+    explicit AdjacentMatrix(uint32_t node_count = 0)
+        : id_generator_(0)
+        , matrix_(node_count)
     {
-        if (graph_.find(a) == graph_.end()) {
-            Vertexs e;
-            e.insert(b);
-            graph_[a] = e;
+        if (node_count <= 0) {
+            return;
         }
-        else {
-            if (graph_[a].find(b) == graph_[a].end()) {
-                graph_[a].insert(b);
-            }
+
+        for (NodeArrayIter it = matrix_.begin(); it != matrix_.end(); ++it) {
+            NodeArray& node_array = *it;
+            node_array.resize(node_count);
         }
     }
 
-    Paths findAllPathsInternal(const Node& from, const Node& to, Path& path)
+    void add_node(const Node& node)
     {
-        if (graph_.find(from) == graph_.end()) {
-            return Paths();
-        }
 
-        if (from == to) {
-            Paths p;
-            p.push_back(path);
-            return p;
-        }
-
-        path.push_back(from);
-        Paths paths;
-        for (VertexsIter iter = graph_[from].begin(); iter != graph_[from].end(); ++iter) {
-            if (find(path.begin(), path.end(), *iter) == path.end()) {
-                Paths newpaths = findAllPathsInternal(*iter, to, path);
-                for (PathsIter piter = newpaths.begin(); piter != newpaths.end(); ++piter) {
-                    newpaths.push_back(*piter);
-                }
-            }
-        }
-
-        return paths;
     }
 
 private:
-    typedef map<Node, set<Node> > InternalGraph;
+    typedef std::vector<Node> NodeArray;
+    typedef std::vector<NodeArray> NodeMatrix;
+    typedef std::map<uint32_t, Node> NodeIdMap;
 
-    typedef typename InternalGraph::iterator GraphIter;
-    typedef typename InternalGraph::const_iterator GraphConstIter;
+    typedef typename NodeArray::iterator NodeArrayIter;
+    typedef typename NodeMatrix::iterator NodeMatrixIter;
+    typedef typename NodeIdMap::iterator NodeIdMapIter;
+
+    uint32_t id_generator_;
+    NodeIdMap id_map_;
+    NodeMatrix matrix_;
+};
+#endif
+
+template <typename Node, class Impl = AdjacentList<Node> >
+class UndirectedGraph
+{
+public:
+    set<shared_ptr<NodeHolder<Node> > > getVertexs() const
+    {
+        return graph_.getVertexs();
+    }
+
+    shared_ptr<NodeHolder<Node> > addVertex(const Node& n)
+    {
+        return graph_.addVertex(n);
+    }
+
+    void addEdge(const Node& x, const Node& y)
+    {
+        graph_.addEdge(x, y);
+        graph_.addEdge(y, x);
+    }
+
+    void bfs(const Node& n)
+    {
+        graph_.bfs(n);
+    }
+
+    void dump() const
+    {
+        graph_.dump();
+    }
 
 private:
-    InternalGraph graph_;
+    Impl graph_;
 };
 
 template <typename Node>
-void getInput(Graph<Node>& g)
+void getInput(UndirectedGraph<Node>& g)
 {
     int n = 0;
     get_single_input(n);
@@ -199,23 +336,21 @@ void getInput(Graph<Node>& g)
         g.addEdge(members[0], members[2]);
         g.addEdge(members[1], members[2]);
     }
+
+    //g.dump();
 }
 
-
 template <typename Node>
-map<Node, int> calc(const Node& champion, Graph<Node>& graph)
+map<Node, int> calc(const Node& champion, UndirectedGraph<Node>& graph)
 {
     map<Node, int> result;
-    typename Graph<Node>::Vertexs vertexs = graph.getVertexs();
-    for (typename Graph<Node>::VertexsIter it = vertexs.begin(); it != vertexs.end(); ++it) {
-        typename Graph<Node>::Path shortest = graph.findShortestPath(champion, *it);
-        if (shortest.size() == 0) {
-            result[*it] = -1;
-        }
-        else {
-            result[*it] = shortest.size() - 1;
-        }
+    graph.bfs(champion);
+
+    set<shared_ptr<NodeHolder<Node> > > vertexs = graph.getVertexs();
+    for (auto it = vertexs.begin(); it != vertexs.end(); ++it) {
+        result[(*it)->node] = (*it)->distance;
     }
+
     return result;
 }
 
@@ -225,7 +360,7 @@ void showResult(const map<Node, int>& result)
 {
     size_t n = result.size();
     for (typename map<Node, int>::const_iterator it = result.cbegin(); it != result.cend(); ++it) {
-        cout << it->first;
+        cout << it->first << ' ';
         if (it->second == -1) {
             cout << "undefined";
         }
@@ -243,7 +378,7 @@ void showResult(const map<Node, int>& result)
 
 int main(int argc, char* argv[])
 {
-    Graph<string> graph;
+    UndirectedGraph<string> graph;
     getInput(graph);
     const string champion = "Isenbaev";
     map<string, int> result = calc(champion, graph);
