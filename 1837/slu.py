@@ -40,14 +40,59 @@ from __future__ import print_function
 import sys;
 import math;
 
+
+class Node:
+    WHITE = 0
+    GREY = 1
+    BLACK = 2
+    
+    def __init__(self, vertex):
+        self.__vertex = vertex
+        self.__color = Node.WHITE
+        self.__distance = -1
+        self.__parent = None
+        
+    def __repr__(self):
+        #return "v: {0}, c: {1}, d: {2}, p: {3}".format(repr(self.__vertex), self.__color, self.__distance, self.__parent)
+        return repr(self.__vertex)
+        
+    def get_vertex(self):
+        return self.__vertex
+        
+    def set_color(self, color):
+        self.__color = color
+        
+    def get_color(self):
+        return self.__color
+    
+    def set_distance(self, d):
+        self.__distance = d
+
+    def get_distance(self):
+        return self.__distance
+    
+    def set_parent(self, p):
+        self.__parent = p
+        
+    def get_parent(self):
+        return self.__parent
+
+
 class UndirectedGraph:
+    '''
+    Undirected graph represented in adjacent list
+    '''
+    
     def __init__(self, graph = None):
         if graph is None:
             self.__graph = {}
         else:
             self.__graph = graph
-
-
+            
+    def __repr__(self):
+        return repr(self.__graph)
+            
+    
     def get_vertexs(self):
         return self.__graph.keys()
 
@@ -58,13 +103,18 @@ class UndirectedGraph:
         @param v vertex to be added
         @return nothing 
         '''
-        if v in self.__graph.keys():
-            return
         
-        self.__graph[v] = {}
+        node = None
         for k in self.__graph.keys():
-            self.__graph[k][v] = 0
-            self.__graph[v][k] = 0
+            if k.get_vertex() == v:
+                node = k
+                break
+            
+        if node is None:
+            node = Node(v)
+            self.__graph[node] = []
+            
+        return node
 
 
     def add_edge(self, x, y):
@@ -75,55 +125,43 @@ class UndirectedGraph:
         @return nothing
         '''
 
-        self.add_vertex(x)
-        self.add_vertex(y)
-        self.__graph[x][y] = 1
-        self.__graph[y][x] = 1
+        node_x = self.add_vertex(x)
+        node_y = self.add_vertex(y)
+        self.__graph[node_x].append(node_y)
+        self.__graph[node_y].append(node_x)
 
 
-    def find_all_paths(self, x, y):
-        '''
-        Find all paths between x and y
-        @param x one vertex of the path
-        @param y another vertex of the path
-        @return None if no path, list of all paths otherwise
-        '''
-
-        def _find_all_paths(graph, x, y, path = []):
-            path = path + [begin]
-            if begin not in graph.keys():
-                return []
-            if begin == end:
-                return [path]
-
-            paths = []
-            for vertex in graph[begin]:
-                if vertex not in path:
-                    newpaths = _find_all_paths(graph, vertex, end, path)
-                    for newpath in newpaths:
-                        paths.append(newpath)
-            return paths
-
-        return _find_all_paths(self.__graph, x, y)
-
-
-    def find_shortest_path(self, begin, end):
-        '''
-        Find the shortest path from begin to end
-        @param begin begin vertex of the path
-        @param end end vertex of the path
-        @return None if no path found, shortest path otherwise
-        '''
-        paths = self.find_all_paths(begin, end)
-        shortest = None
-        for path in paths:
-            if shortest is None:
-                shortest = path
+    def __reset_nodes(self, x):
+        node = None
+        for k in self.__graph.keys():
+            if (k.get_vertex() == x):
+                k.set_color(Node.GREY)
+                k.set_distance(0)
+                node = k
             else:
-                if len(path) < len(shortest):
-                    shortest = path
+                k.set_color(Node.WHITE)
+                k.set_distance(-1)
+            k.set_parent(None)
+        return node
 
-        return shortest
+
+    def bfs(self, x):
+        '''
+        Breadth First Search
+        @param x source vertex
+        @return BFS tree
+        '''
+        node = self.__reset_nodes(x)
+        queue = [node]
+        while len(queue) > 0:
+            u = queue.pop(0)
+            for v in self.__graph[u]:
+                if v.get_color() == Node.WHITE:
+                    v.set_color(Node.GREY)
+                    v.set_distance(u.get_distance() + 1)
+                    v.set_parent(u)
+                    queue.append(v)
+            u.set_color(Node.BLACK)
 
 
 def get_str_from_stdin():
@@ -137,36 +175,42 @@ def get_int_from_stdin():
 def get_input():
     n = 0
     i = 0
-    g = Graph()
+    g = UndirectedGraph()
     for line in sys.stdin:
         if n == 0:
             n = int(line.strip('\r\n'))
             if (n <= 0):
-                break;
+                break
             else:
                 continue        
 
         names = line.strip('\r\n').split(' ')
-        assert len(names) == 3
-        g.add_edge(names[0], names[1])
-        g.add_edge(names[0], names[2])
-        g.add_edge(names[1], names[2])
+        l = len(names)
+        for u in range(l - 1):
+            for v in range(u + 1, l):
+                #print("adding edge: {0}, {1}".format(names[u], names[v]))
+                g.add_edge(names[u], names[v])
         
         i = i + 1
         if i >= n:
-            break;        
+            break
+        
+    #print(g)
 
     return g
 
 
 def calc(champion, graph):
     r = {}
+    graph.bfs(champion)
     for v in graph.get_vertexs():
-        path = graph.find_shortest_path(champion, v)
-        if path is None:
-            r[v] = 'undefined'
+        d = v.get_distance()
+        n = v.get_vertex()
+        if d == -1:
+            r[n] = "undefined"
         else:
-            r[v] = len(path) - 1
+            r[n] = d
+        
     return r
 
 
@@ -181,7 +225,7 @@ def show_result(result):
             e = ''
         else:
             e = '\n'
-        print('{0} {1}'.format(n, result[n]), end=e)
+        print('{0} {1}'.format(n, result[n]), end = e)
         i = i + 1
 
 if __name__ == '__main__':
