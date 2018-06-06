@@ -2,6 +2,10 @@
 # -*- coding: utf-8 -*-
 
 '''
+1935. Tears of Drowned
+Time limit: 1.0 second
+Memory limit: 64 MB
+
 [Description]
 Old Captain Jack Sparrow’s friend Tia Dalma, the fortuneteller and prophetess, often makes potions. She has an 
 outstanding collection of the rarest ingredients such as rat tails, fingers of drowned, tears of virgins and so on. 
