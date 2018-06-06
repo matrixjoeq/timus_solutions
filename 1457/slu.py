@@ -66,7 +66,17 @@ def get_int_from_stdin():
     return int(get_str_from_stdin())
 
 def calc():
-    pass
+    n = get_int_from_stdin()
+    line = get_str_from_stdin()
+    p = line.split(' ')
+    assert n <= len(p)
+    
+    point = 0
+    for i in p:
+        point = point + int(i)
+    point = float(point) / n
+    
+    sys.stdout.write('{0:.6f}'.format(point))
 
 if __name__ == '__main__':
     calc()
