@@ -1,10 +1,36 @@
 /*
- * [Description]
- *
- * [Input]
- *
- * [Output]
- *
+1837. Isenbaev's Number
+Time limit: 0.5 second
+Memory limit: 64 MB
+
+[Description]
+Vladislav Isenbaev is a two-time champion of Ural, vice champion of TopCoder
+Open 2009, and absolute champion of ACM ICPC 2009. In the time you will spend
+reading this problem statement Vladislav would have solved a problem. Maybe,
+even two…
+Since Vladislav Isenbaev graduated from the Specialized Educational and
+Scientific Center at Ural State University, many of the former and present
+contestants at USU have known him for quite a few years. Some of them are proud
+to say that they either played in the same team with him or played in the same
+team with one of his teammates…
+Let us define Isenbaev's number as follows. This number for Vladislav himself
+is 0. For people who played in the same team with him, the number is 1. For
+people who weren't his teammates but played in the same team with one or more
+of his teammates, the number is 2, and so on. Your task is to automate the
+process of calculating Isenbaev's numbers so that each contestant at USU would
+know their proximity to the ACM ICPC champion.
+
+[Input]
+The first line contains the number of teams n (1 ≤ n ≤ 100). In each of the
+following n lines you are given the names of the three members of the corres-
+ponding team. The names are separated with a space. Each name is a nonempty
+line consisting of English letters, and its length is at most 20 symbols. The
+first letter of a name is capital and the other letters are lowercase.
+
+[Output]
+For each contestant mentioned in the input data output a line with their name
+and Isenbaev's number. If the number is undefined, output “undefined” instead
+of it. The contestants must be ordered lexicographically.
  */
 
 #include <cassert>
@@ -55,47 +81,65 @@ static void get_inputs(Container& c)
     }
 }
 
-enum NODE_COLOR {
-    COLOR_WHITE,
-    COLOR_GREY,
-    COLOR_BLACK
+enum NODE_COLOR
+{
+    COLOR_WHITE,    // never visited
+    COLOR_GREY,     // discovered
+    COLOR_BLACK     // visit from current node finished
 };
 
 template <typename Node>
 struct NodeHolder
 {
     Node node;
+    shared_ptr<NodeHolder> parent;
     NODE_COLOR color;
-    int32_t distance;
-    //shared_ptr<NodeHolder> parent;
+    int32_t distance;       // used for BFS, recording distance to source
+    int32_t discover_time;  // used for DFS, recording time when this node is discovered
+    int32_t finish_time;    // used for DFS, recording time when DFS from this node is finished
 
     NodeHolder()
         : color(COLOR_WHITE)
         , distance(-1)
-        //, parent()
+        , discover_time(-1)
+        , finish_time(-1)
     {}
 
     explicit NodeHolder(const Node& n)
         : node(n)
         , color(COLOR_WHITE)
         , distance(-1)
-        //, parent()
+        , discover_time(-1)
+        , finish_time(-1)
     {}
 
     NodeHolder(const NodeHolder& other)
         : node(other.node)
+        , parent(other.parent)
         , color(other.color)
         , distance(other.distance)
-        //, parent(other.parent)
+        , discover_time(-1)
+        , finish_time(-1)
     {}
+
+    void reset()
+    {
+        parent.reset();
+        color = COLOR_WHITE;
+        distance = -1;
+        discover_time = -1;
+        finish_time = -1;
+    }
 
     NodeHolder& operator=(const NodeHolder& other)
     {
         if (this != &other) {
             node = other.node;
+            parent = other.parent;
             color = other.color;
             distance = other.distance;
-            //parent = other.parent;
+            discover_time = other.discover_time;
+            finish_time = other.finish_time;
         }
 
         return *this;
@@ -164,8 +208,11 @@ public:
 
     void bfs(const Node& n)
     {
-        _Node node = reset(n);
+        _Node node = resetSource(n);
         if (!node) return;
+
+        node->color = COLOR_GREY;
+        node->distance = 0;
 
         queue<_Node> q;
         q.push(node);
@@ -183,7 +230,7 @@ public:
                 if (_v->color == COLOR_WHITE) {
                     _v->color = COLOR_GREY;
                     _v->distance = u->distance + 1;
-                    //_v->parent = u;
+                    _v->parent = u;
                     q.push(_v);
                 }
             }
@@ -191,16 +238,38 @@ public:
         }
     }
 
+    void dfs()
+    {
+        for (NodeMapIter x = list_.begin(); x != list_.end(); ++x) {
+            const _Node& node = it->first;
+            if (!node) continue;
+
+            _node->reset();
+        }
+
+        int32_t t = 0;
+        for (NodeMapIter x = list_.begin(); x != list_.end(); ++x) {
+            const _Node& node = it->first;
+            if (!node) continue;
+
+            if (node->color == COLOR_WHITE) {
+                dfsVisit(node, t);
+            }
+        }
+    }
+
     void dump() const
     {
         for (NodeMapConstIter x = list_.cbegin(); x != list_.cend(); ++x) {
             const _Node& n = x->first;
+            const NodeList l = x->second;
             if (!n) continue;
 
             cout << n->node << ": [ ";
-            for (NodeConstIter y = x->second.cbegin(); y != x->second.cend(); ++y) {
-                if (*y) {
-                    cout << (*y)->node << " ";
+            for (NodeConstIter y = l.cbegin(); y != l.cend(); ++y) {
+                const _Node& n = *y;
+                if (n) {
+                    cout << n->node << " ";
                 }
             }
             cout << "]\n";
@@ -208,74 +277,51 @@ public:
     }
 
 private:
-    _Node reset(const Node& n)
+    _Node resetSource(const Node& n)
     {
+        bool found = false;
         _Node node;
         for (NodeMapIter it = list_.begin(); it != list_.end(); ++it) {
             const _Node& _node = it->first;
             if (!_node) continue;
 
-            if (_node->node == n) {
-                _node->color = COLOR_GREY;
-                _node->distance = 0;
+            _node->reset();
+
+            if (!found && _node->node == n) {
                 node = _node;
+                found = true;
             }
-            else {
-                _node->color = COLOR_WHITE;
-                _node->distance = -1;
-            }
-            //_node->parent.reset();
         }
         return node;
+    }
+
+    void dfsVisit(const _Node& n, int32_t& t)
+    {
+        assert(n);
+
+        // node n has just been discovered
+        ++t;
+        n->discover_time = t;
+        n->color = COLOR_GREY;
+
+        // explore edge (n, v)
+        for (NodeIter x = list_[n].begin(); x != list_[n].end(); ++x) {
+
+        }
     }
 
 private:
     NodeListMap list_;
 };
 
-#if 0
-template <typename Node>
-class AdjacentMatrix
-{
-public:
-    explicit AdjacentMatrix(uint32_t node_count = 0)
-        : id_generator_(0)
-        , matrix_(node_count)
-    {
-        if (node_count <= 0) {
-            return;
-        }
-
-        for (NodeArrayIter it = matrix_.begin(); it != matrix_.end(); ++it) {
-            NodeArray& node_array = *it;
-            node_array.resize(node_count);
-        }
-    }
-
-    void add_node(const Node& node)
-    {
-
-    }
-
-private:
-    typedef std::vector<Node> NodeArray;
-    typedef std::vector<NodeArray> NodeMatrix;
-    typedef std::map<uint32_t, Node> NodeIdMap;
-
-    typedef typename NodeArray::iterator NodeArrayIter;
-    typedef typename NodeMatrix::iterator NodeMatrixIter;
-    typedef typename NodeIdMap::iterator NodeIdMapIter;
-
-    uint32_t id_generator_;
-    NodeIdMap id_map_;
-    NodeMatrix matrix_;
-};
-#endif
-
 template <typename Node, class Impl = AdjacentList<Node> >
-class UndirectedGraph
+class Graph
 {
 public:
+    explicit Graph(bool directed = true)
+        : directed_(directed)
+    {}
+
     set<shared_ptr<NodeHolder<Node> > > getVertexs() const
     {
         return graph_.getVertexs();
@@ -286,15 +332,22 @@ public:
         return graph_.addVertex(n);
     }
 
-    void addEdge(const Node& x, const Node& y)
+    void addEdge(const Node& from, const Node& to)
     {
-        graph_.addEdge(x, y);
-        graph_.addEdge(y, x);
+        graph_.addEdge(from, to);
+        if (!directed_) {
+            graph_.addEdge(to, from);
+        }
     }
 
     void bfs(const Node& n)
     {
         graph_.bfs(n);
+    }
+
+    void dfs(const Node& n)
+    {
+        graph_.dfs(n);
     }
 
     void dump() const
@@ -304,10 +357,11 @@ public:
 
 private:
     Impl graph_;
+    bool directed_;
 };
 
 template <typename Node>
-void getInput(UndirectedGraph<Node>& g)
+void getInput(Graph<Node>& g)
 {
     int n = 0;
     get_single_input(n);
@@ -337,11 +391,11 @@ void getInput(UndirectedGraph<Node>& g)
         g.addEdge(members[1], members[2]);
     }
 
-    //g.dump();
+    g.dump();
 }
 
 template <typename Node>
-map<Node, int> calc(const Node& champion, UndirectedGraph<Node>& graph)
+map<Node, int> calc(const Node& champion, Graph<Node>& graph)
 {
     map<Node, int> result;
     graph.bfs(champion);
@@ -378,7 +432,7 @@ void showResult(const map<Node, int>& result)
 
 int main(int argc, char* argv[])
 {
-    UndirectedGraph<string> graph;
+    Graph<string> graph(false /* directed */);
     getInput(graph);
     const string champion = "Isenbaev";
     map<string, int> result = calc(champion, graph);
