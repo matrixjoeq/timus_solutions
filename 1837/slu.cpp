@@ -209,7 +209,9 @@ public:
     void bfs(const Node& n)
     {
         _Node node = resetSource(n);
-        if (!node) return;
+        if (!node) {
+            return;
+        }
 
         node->color = COLOR_GREY;
         node->distance = 0;
@@ -221,11 +223,15 @@ public:
             _Node u = q.front();
             q.pop();
 
-            if (!u || list_.find(u) == list_.end()) continue;
+            if (!u || list_.find(u) == list_.end()) {
+                continue;
+            }
 
             for (NodeIter v = list_[u].begin(); v != list_[u].end(); ++v) {
                 const _Node& _v = *v;
-                if (!_v) continue;
+                if (!_v) {
+                    continue;
+                }
 
                 if (_v->color == COLOR_WHITE) {
                     _v->color = COLOR_GREY;
@@ -241,16 +247,20 @@ public:
     void dfs()
     {
         for (NodeMapIter x = list_.begin(); x != list_.end(); ++x) {
-            const _Node& node = it->first;
-            if (!node) continue;
+            const _Node& node = x->first;
+            if (!node) {
+                continue;
+            }
 
-            _node->reset();
+            node->reset();
         }
 
         int32_t t = 0;
         for (NodeMapIter x = list_.begin(); x != list_.end(); ++x) {
-            const _Node& node = it->first;
-            if (!node) continue;
+            const _Node& node = x->first;
+            if (!node) {
+                continue;
+            }
 
             if (node->color == COLOR_WHITE) {
                 dfsVisit(node, t);
@@ -263,7 +273,9 @@ public:
         for (NodeMapConstIter x = list_.cbegin(); x != list_.cend(); ++x) {
             const _Node& n = x->first;
             const NodeList l = x->second;
-            if (!n) continue;
+            if (!n) {
+                continue;
+            }
 
             cout << n->node << ": [ ";
             for (NodeConstIter y = l.cbegin(); y != l.cend(); ++y) {
@@ -283,7 +295,9 @@ private:
         _Node node;
         for (NodeMapIter it = list_.begin(); it != list_.end(); ++it) {
             const _Node& _node = it->first;
-            if (!_node) continue;
+            if (!_node) {
+                continue;
+            }
 
             _node->reset();
 
@@ -306,8 +320,17 @@ private:
 
         // explore edge (n, v)
         for (NodeIter x = list_[n].begin(); x != list_[n].end(); ++x) {
-
+            const _Node& node = *x;
+            if (node->color == COLOR_WHITE) {
+                node->parent = n;
+                dfsVisit(node, t);
+            }
         }
+
+        // blacken n, it is finished
+        n->color = COLOR_BLACK;
+        ++t;
+        n->finish_time = t;
     }
 
 private:
@@ -345,9 +368,9 @@ public:
         graph_.bfs(n);
     }
 
-    void dfs(const Node& n)
+    void dfs()
     {
-        graph_.dfs(n);
+        graph_.dfs();
     }
 
     void dump() const
@@ -434,9 +457,17 @@ int main(int argc, char* argv[])
 {
     Graph<string> graph(false /* directed */);
     getInput(graph);
+    /*
     const string champion = "Isenbaev";
     map<string, int> result = calc(champion, graph);
     showResult(result);
+    */
+
+    graph.dfs();
+    set<shared_ptr<NodeHolder<string> > > vertexs = graph.getVertexs();
+    for (auto it = vertexs.begin(); it != vertexs.end(); ++it) {
+        cout << (*it)->node << " [ " << (*it)->discover_time << " / " << (*it)->finish_time << " ]\n";
+    }
 
     return 0;
 }
