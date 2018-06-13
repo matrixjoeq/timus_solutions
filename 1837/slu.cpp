@@ -50,6 +50,7 @@ of it. The contestants must be ordered lexicographically.
 #include <queue>
 #include <stack>
 #include <algorithm>
+#include <stdexcept>
 
 using namespace std;
 
@@ -208,7 +209,9 @@ public:
 
     void bfs(const Node& n)
     {
-        _Node node = resetSource(n);
+        resetStates();
+
+        _Node node = convertNode(n);
         if (!node) {
             return;
         }
@@ -246,14 +249,7 @@ public:
 
     void dfs()
     {
-        for (NodeMapIter x = list_.begin(); x != list_.end(); ++x) {
-            const _Node& node = x->first;
-            if (!node) {
-                continue;
-            }
-
-            node->reset();
-        }
+        resetStates();
 
         int32_t t = 0;
         for (NodeMapIter x = list_.begin(); x != list_.end(); ++x) {
@@ -266,6 +262,31 @@ public:
                 dfsVisit(node, t);
             }
         }
+    }
+
+    void dfs(const Node& n)
+    {
+        resetStates();
+
+        _Node node = convertNode(n);
+        if (!node) {
+            return;
+        }
+
+        int32_t t = 0;
+        dfsVisit(node, t);
+    }
+
+    list<shared_ptr<NodeHolder<Node> > > topologicalSort()
+    {
+        dfs();
+        return topological_list_;
+    }
+
+    bool hasLoop()
+    {
+        dfs();
+        return loop_detected_;
     }
 
     void dump() const
@@ -289,10 +310,22 @@ public:
     }
 
 private:
-    _Node resetSource(const Node& n)
+    _Node convertNode(const Node& n)
     {
-        bool found = false;
-        _Node node;
+        _Node _node;
+        for (NodeMapIter it = list_.begin(); it != list_.end(); ++it) {
+            const _Node& _n = it->first;
+            if (!_n && _n->node == n) {
+                _node = _n;
+                break;
+            }
+        }
+        return _node;
+    }
+
+    void resetStates()
+    {
+        loop_detected_ = false;
         for (NodeMapIter it = list_.begin(); it != list_.end(); ++it) {
             const _Node& _node = it->first;
             if (!_node) {
@@ -300,13 +333,7 @@ private:
             }
 
             _node->reset();
-
-            if (!found && _node->node == n) {
-                node = _node;
-                found = true;
-            }
         }
-        return node;
     }
 
     void dfsVisit(const _Node& n, int32_t& t)
@@ -325,16 +352,32 @@ private:
                 node->parent = n;
                 dfsVisit(node, t);
             }
+            else if (node->color == COLOR_GREY) {
+                loop_detected_ = true;
+            }
         }
 
         // blacken n, it is finished
         n->color = COLOR_BLACK;
         ++t;
         n->finish_time = t;
+
+        // insert n at the front of topological list
+        topological_list_.insert(topological_list_.begin(), n);
     }
 
 private:
     NodeListMap list_;
+    bool loop_detected_;
+    list<_Node> topological_list_;
+};
+
+class IllegalOperation : public runtime_error
+{
+public:
+    explicit IllegalOperation(const string& msg)
+        : runtime_error(msg)
+    {}
 };
 
 template <typename Node, class Impl = AdjacentList<Node> >
@@ -371,6 +414,24 @@ public:
     void dfs()
     {
         graph_.dfs();
+    }
+
+    void dfs(const Node& n)
+    {
+        graph_.dfs(n);
+    }
+
+    bool hasLoop()
+    {
+        return graph_.hasLoop();
+    }
+
+    list<shared_ptr<NodeHolder<Node> > > topologicalSort()
+    {
+        if (!directed_ || graph_.hasLoop()) {
+            throw IllegalOperation("Topological sort can only be used on a directed non-loop graph");
+        }
+        return graph_.topologicalSort();
     }
 
     void dump() const
@@ -431,7 +492,6 @@ map<Node, int> calc(const Node& champion, Graph<Node>& graph)
     return result;
 }
 
-
 template <typename Node>
 void showResult(const map<Node, int>& result)
 {
@@ -463,10 +523,14 @@ int main(int argc, char* argv[])
     showResult(result);
     */
 
-    graph.dfs();
-    set<shared_ptr<NodeHolder<string> > > vertexs = graph.getVertexs();
-    for (auto it = vertexs.begin(); it != vertexs.end(); ++it) {
-        cout << (*it)->node << " [ " << (*it)->discover_time << " / " << (*it)->finish_time << " ]\n";
+    try {
+        list<shared_ptr<NodeHolder<string> > > topological_list = graph.topologicalSort();
+        for (auto it = topological_list.begin(); it != topological_list.end(); ++it) {
+            cout << (*it)->node << " [ " << (*it)->discover_time << ", " << (*it)->finish_time << " ] \n";
+        }
+    }
+    catch (const IllegalOperation& e) {
+        cout << e.what() << endl;
     }
 
     return 0;
