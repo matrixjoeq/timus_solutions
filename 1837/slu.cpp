@@ -285,17 +285,17 @@ public:
         }
     }
 
-    void dfs(const Node& n)
+    void dfs(const Node& source)
     {
         resetStates();
 
-        _Node node = convertNode(n);
-        if (!node) {
+        _Node s = convertNode(source);
+        if (!s) {
             return;
         }
 
         int32_t t = 0;
-        dfsVisit(node, t);
+        dfsVisit(s, t);
     }
 
     list<shared_ptr<NodeHolder<Node> > > topologicalSort()
@@ -308,6 +308,62 @@ public:
     {
         dfs();
         return loop_detected_;
+    }
+
+    /* @brief Bellman-Ford
+     *
+     * BELLMAN-FORD(G, w, s)
+     *   INITIALIZE-SINGLE-SOURCE(G, s)
+     *   for i = 1 to |G.V| - 1
+     *     for each edge(u, v) in G.E
+     *       RELAX(u, v, w)
+     *   for each edge(u, v) in G.E
+     *     if v.d > u.d + w(u, v)
+     *       return FALSE
+     *   return TRUE
+     */
+    bool bellmanFord(const Node& source)
+    {
+        _Node s = convertNode(source);
+        if (!s) {
+            return false;
+        }
+
+        initializeSingleSource(s);
+        for (typename NodeListMap::size_type i = 1; i < list_.size(); ++i) {
+            for (NodeMapIter x = list_.begin(); x != list_.end(); ++x) {
+                const _Node& u = x->first;
+                if (!u) {
+                    continue;
+                }
+
+                for (NodeIter y = x->second.begin(); y != x->second.end(); ++y) {
+                    const _WeightedNode& v = *y;
+                    relax(u, v);
+                }
+            }
+        }
+
+        for (NodeMapIter x = list_.begin(); x != list_.end(); ++x) {
+            const _Node& u = x->first;
+            if (!u) {
+                continue;
+            }
+
+            for (NodeIter y = x->second.begin(); y != x->second.end(); ++y) {
+                const _WeightedNode& v = *y;
+                const _Node& _v = v.node;
+                if (!_v) {
+                    continue;
+                }
+
+                if ((u->distance != n_infinity) && (_v->distance > (u->distance + v.weight))) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     void dump() const
@@ -336,7 +392,7 @@ private:
         _Node _node;
         for (NodeMapIter it = list_.begin(); it != list_.end(); ++it) {
             const _Node& _n = it->first;
-            if (!_n && _n->node == n) {
+            if (_n && _n->node == n) {
                 _node = _n;
                 break;
             }
@@ -359,7 +415,9 @@ private:
 
     void dfsVisit(const _Node& n, int32_t& t)
     {
-        assert(n);
+        if (!n || list_.find(n) == list_.end()) {
+            return;
+        }
 
         // node n has just been discovered
         ++t;
@@ -390,6 +448,41 @@ private:
 
         // insert n at the front of topological list
         topological_list_.insert(topological_list_.begin(), n);
+    }
+
+    void initializeSingleSource(const _Node& source)
+    {
+        resetStates();
+        if (source) {
+            source->distance = 0;
+        }
+    }
+
+    /* @brief RELAX operation
+     *
+     * RELAX(u, v, w)
+     *   if v.d > u.d + w(u, v)
+     *     v.d = u.d + w(u, v)
+     *     v.p = u
+     */
+    void relax(const _Node& u, const _WeightedNode& v)
+    {
+        if (!u || !(v.node) || list_.find(u) == list_.end()) {
+            return;
+        }
+
+        if ((v.weight == n_infinity) || (u->distance == n_infinity)) {
+            // w = w(u, v), (u, v) must in G.E
+            // AND
+            // v.d can never be greater than infinity
+            return;
+        }
+
+        // TODO: what if u.d + w > n_infinity
+        if ((v.node)->distance > (u->distance + v.weight)) {
+            (v.node)->distance = u->distance + v.weight;
+            (v.node)->parent = u;
+        }
     }
 
 private:
@@ -432,9 +525,9 @@ public:
         }
     }
 
-    void bfs(const Node& n)
+    void bfs(const Node& source)
     {
-        graph_.bfs(n);
+        graph_.bfs(source);
     }
 
     void dfs()
@@ -442,9 +535,9 @@ public:
         graph_.dfs();
     }
 
-    void dfs(const Node& n)
+    void dfs(const Node& source)
     {
-        graph_.dfs(n);
+        graph_.dfs(source);
     }
 
     bool hasLoop()
@@ -458,6 +551,11 @@ public:
             throw IllegalOperation("Topological sort can only be used on a directed non-loop graph");
         }
         return graph_.topologicalSort();
+    }
+
+    bool bellmanFord(const Node& source)
+    {
+        return graph_.bellmanFord(source);
     }
 
     void dump() const
@@ -501,14 +599,15 @@ void getInput(Graph<Node>& g)
         g.addEdge(members[1], members[2]);
     }
 
-    g.dump();
+    //g.dump();
 }
 
 template <typename Node>
 map<Node, int> calc(const Node& champion, Graph<Node>& graph)
 {
     map<Node, int> result;
-    graph.bfs(champion);
+    //graph.bfs(champion);
+    bool ret = graph.bellmanFord(champion);
 
     set<shared_ptr<NodeHolder<Node> > > vertexs = graph.getVertexs();
     for (auto it = vertexs.begin(); it != vertexs.end(); ++it) {
@@ -524,7 +623,7 @@ void showResult(const map<Node, int>& result)
     size_t n = result.size();
     for (typename map<Node, int>::const_iterator it = result.cbegin(); it != result.cend(); ++it) {
         cout << it->first << ' ';
-        if (it->second == -1) {
+        if (it->second == n_infinity) {
             cout << "undefined";
         }
         else {
