@@ -188,17 +188,29 @@ private:
     typedef typename NodeListMap::iterator NodeMapIter;
     typedef typename NodeListMap::const_iterator NodeMapConstIter;
 
-public:
-    set<shared_ptr<NodeHolder<Node> > > getVertexs() const
+private:
+    template <typename _Node>
+    struct NodeLess
     {
-        set<shared_ptr<NodeHolder<Node> > > vertexs;
+        bool operator()(const _Node& lhs, const _Node& rhs) const
+        {
+            assert(lhs);
+            assert(rhs);
+            return (lhs->distance < rhs->distance);
+        }
+    };
+
+public:
+    set<shared_ptr<NodeHolder<Node> > > getVertices() const
+    {
+        set<shared_ptr<NodeHolder<Node> > > vertices;
         for (NodeMapConstIter it = list_.cbegin(); it != list_.cend(); ++it) {
             const _Node& node = it->first;
             if (node) {
-                vertexs.insert(node);
+                vertices.insert(node);
             }
         }
-        return vertexs;
+        return vertices;
     }
 
     shared_ptr<NodeHolder<Node> > addVertex(const Node& n)
@@ -366,6 +378,80 @@ public:
         return true;
     }
 
+    /* @brief DAG-SHORTEST-PATHS
+     *
+     * DAG-SHORTEST-PATHS(G, w, s)
+     *   topologically sort the vertices of G
+     *   INITIALIZE-SINGLE-SOURCE(G, s)
+     *   for each vertex u, taken in topologically sorted order
+     *     for each vertex v in G.Adj[u]
+     *       RELAX(u, v, w)
+     */
+    void dagShortestPaths(const Node& source)
+    {
+        _Node s = convertNode(source);
+        if (!s) {
+            return;
+        }
+
+        list<_Node> vertices = topologicalSort();
+        initializeSingleSource(s);
+        for (typename list<_Node>::iterator x = vertices.begin(); x != vertices.end(); ++x) {
+            const _Node& u = *x;
+            if (!u || list_.find(u) == list_.end()) {
+                continue;
+            }
+
+            for (NodeIter y = list_[u].begin(); y != list_[u].end(); ++y) {
+                const _WeightedNode& v = *y;
+                relax(u, v);
+            }
+        }
+    }
+
+    /* @brief Dijkstra
+     *
+     * DIJKSTRA(G, w, s)
+     *   INITIALIZE-SINGLE-SOURCE(G, s)
+     *   S = {}
+     *   Q = G.V
+     *   while Q != {}
+     *     u = EXTRACT-MIN(Q)
+     *     S = S U {u}
+     *     for each vertex v in G.Adj[u]
+     *       RELAX(u, v, w)
+     */
+    void dijkstra(const Node& source)
+    {
+        _Node s = convertNode(source);
+        if (!s) {
+            return;
+        }
+
+        initializeSingleSource(s);
+        list<_Node> q;
+        for (NodeMapIter x = list_.begin(); x != list_.end(); ++x) {
+            const _Node& u = x->first;
+            if (!u) {
+                continue;
+            }
+
+            q.push_back(u);
+        }
+
+        NodeLess<_Node> compare;
+        while (!q.empty()) {
+            q.sort(compare);
+            const _Node& u = q.front();
+            assert(u);
+            for (NodeIter x = list_[u].begin(); x != list_[u].end(); ++x) {
+                const _WeightedNode& v = *x;
+                relax(u, v);
+            }
+            q.pop_front();
+        }
+    }
+
     void dump() const
     {
         for (NodeMapConstIter x = list_.cbegin(); x != list_.cend(); ++x) {
@@ -507,9 +593,9 @@ public:
         : directed_(directed)
     {}
 
-    set<shared_ptr<NodeHolder<Node> > > getVertexs() const
+    set<shared_ptr<NodeHolder<Node> > > getVertices() const
     {
-        return graph_.getVertexs();
+        return graph_.getVertices();
     }
 
     shared_ptr<NodeHolder<Node> > addVertex(const Node& n)
@@ -556,6 +642,16 @@ public:
     bool bellmanFord(const Node& source)
     {
         return graph_.bellmanFord(source);
+    }
+
+    void dagShortestPaths(const Node& source)
+    {
+        return graph_.dagShortestPaths(source);
+    }
+
+    void dijkstra(const Node& source)
+    {
+        return graph_.dijkstra(source);
     }
 
     void dump() const
@@ -607,10 +703,12 @@ map<Node, int> calc(const Node& champion, Graph<Node>& graph)
 {
     map<Node, int> result;
     //graph.bfs(champion);
-    bool ret = graph.bellmanFord(champion);
+    //bool ret = graph.bellmanFord(champion);
+    //graph.dagShortestPaths(champion); // cannot use DAG, since it is not a directed non-circle graph in this case
+    graph.dijkstra(champion);
 
-    set<shared_ptr<NodeHolder<Node> > > vertexs = graph.getVertexs();
-    for (auto it = vertexs.begin(); it != vertexs.end(); ++it) {
+    set<shared_ptr<NodeHolder<Node> > > vertices = graph.getVertices();
+    for (auto it = vertices.begin(); it != vertices.end(); ++it) {
         result[(*it)->node] = (*it)->distance;
     }
 
