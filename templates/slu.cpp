@@ -1,17 +1,17 @@
 /*
- * [Description]
- *
- * [Input]
- *
- * [Output]
- *
+[Description]
+[Input]
+[Output]
  */
 
+#include <cassert>
 #include <cstdio>
 #include <cstdlib>
-#include <cinttypes>
+#include <cstdint>
 #include <cmath>
 
+#include <limits>
+#include <memory>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -22,6 +22,7 @@
 #include <queue>
 #include <stack>
 #include <algorithm>
+#include <stdexcept>
 
 using namespace std;
 
@@ -29,7 +30,10 @@ using namespace std;
 template<typename T>
 static void get_single_input(T& x)
 {
-    cin >> x;
+    string line;
+    getline(cin, line);
+    istringstream input(line);
+    input >> x;
 }
 
 // Get a line input from stdin
