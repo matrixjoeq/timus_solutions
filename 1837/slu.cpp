@@ -70,7 +70,7 @@ static void get_single_input(T& x)
 template<typename Container>
 static void get_inputs(Container& c)
 {
-    typedef typename Container::value_type T;
+    using T = typename Container::value_type;
 
     string line;
     while (getline(cin, line)) {
@@ -85,7 +85,7 @@ static void get_inputs(Container& c)
 
 static const int32_t n_infinity = numeric_limits<int32_t>::max();
 
-enum NODE_COLOR
+enum class NodeColor
 {
     COLOR_WHITE,    // never visited
     COLOR_GREY,     // discovered
@@ -97,13 +97,13 @@ struct NodeHolder
 {
     Node node;
     shared_ptr<NodeHolder> parent;
-    NODE_COLOR color;
+    NodeColor color;
     int32_t distance;       // used for BFS, recording distance to source; used for shortest path upper limit estimation
     int32_t discover_time;  // used for DFS, recording time when this node is discovered
     int32_t finish_time;    // used for DFS, recording time when DFS from this node is finished
 
     NodeHolder()
-        : color(COLOR_WHITE)
+        : color(NodeColor::COLOR_WHITE)
         , distance(n_infinity)
         , discover_time(-1)
         , finish_time(-1)
@@ -111,7 +111,7 @@ struct NodeHolder
 
     explicit NodeHolder(const Node& n)
         : node(n)
-        , color(COLOR_WHITE)
+        , color(NodeColor::COLOR_WHITE)
         , distance(n_infinity)
         , discover_time(-1)
         , finish_time(-1)
@@ -120,7 +120,7 @@ struct NodeHolder
     void reset()
     {
         parent.reset();
-        color = COLOR_WHITE;
+        color = NodeColor::COLOR_WHITE;
         distance = n_infinity;
         discover_time = -1;
         finish_time = -1;
@@ -179,50 +179,40 @@ template <typename Node>
 class AdjacentList
 {
 private:
-    typedef shared_ptr<NodeHolder<Node> > _Node;
-    typedef WeightedNode<NodeHolder<Node> > _WeightedNode;
-    typedef set<_WeightedNode> NodeList;
+    using _Node = shared_ptr<NodeHolder<Node>>;
+    using _WeightedNode = WeightedNode<NodeHolder<Node>>;
+    using NodeList = set<_WeightedNode>;
     typedef typename NodeList::iterator NodeIter;
     typedef typename NodeList::const_iterator NodeConstIter;
-    typedef map<_Node, NodeList> NodeListMap;
+    using NodeListMap = map<_Node, NodeList>;
     typedef typename NodeListMap::iterator NodeMapIter;
     typedef typename NodeListMap::const_iterator NodeMapConstIter;
 
-private:
-    template <typename _Node>
-    struct NodeLess
-    {
-        bool operator()(const _Node& lhs, const _Node& rhs) const
-        {
-            assert(lhs);
-            assert(rhs);
-            return (lhs->distance < rhs->distance);
-        }
-    };
-
 public:
-    set<shared_ptr<NodeHolder<Node> > > getVertices() const
+    set<shared_ptr<NodeHolder<Node>>> getVertices() const
     {
-        set<shared_ptr<NodeHolder<Node> > > vertices;
-        for (NodeMapConstIter it = list_.cbegin(); it != list_.cend(); ++it) {
-            const _Node& node = it->first;
+        set<shared_ptr<NodeHolder<Node>>> vertices;
+        for_each(list_.begin(), list_.end(), [&vertices](const pair<_Node, NodeList>& p){
+            const auto& node = p.first;
             if (node) {
                 vertices.insert(node);
             }
-        }
+        });
         return vertices;
     }
 
-    shared_ptr<NodeHolder<Node> > addVertex(const Node& n)
+    shared_ptr<NodeHolder<Node>> addVertex(const Node& n)
     {
-        for (NodeMapConstIter it = list_.cbegin(); it != list_.cend(); ++it) {
-            const _Node& node = it->first;
-            if (node && node->node == n) {
-                return node;
-            }
+        auto found = find_if(list_.begin(), list_.end(), [&n](const pair<_Node, NodeList>& p){
+            const auto& node = p.first;
+            return (node && node->node == n);
+        });
+
+        if (found != list_.end()) {
+            return found->first;
         }
 
-        _Node node = make_shared<NodeHolder<Node> >(n);
+        auto node = make_shared<NodeHolder<Node>>(n);
         if (node) {
             list_[node] = NodeList();
         }
@@ -231,8 +221,8 @@ public:
 
     void addEdge(const Node& from, const Node& to, int32_t weight = 1)
     {
-        _Node _from = addVertex(from);
-        _Node _to = addVertex(to);
+        auto _from = addVertex(from);
+        auto _to = addVertex(to);
         if (_from && _to) {
             _WeightedNode _weighted(_to, weight);
             list_[_from].insert(_weighted);
@@ -243,40 +233,35 @@ public:
     {
         resetStates();
 
-        _Node s = convertNode(source);
+        auto s = convertNode(source);
         if (!s) {
             return;
         }
 
-        s->color = COLOR_GREY;
+        s->color = NodeColor::COLOR_GREY;
         s->distance = 0;
 
         queue<_Node> q;
         q.push(s);
 
         while (!q.empty()) {
-            _Node u = q.front();
+            auto u = q.front();
             q.pop();
 
             if (!u || list_.find(u) == list_.end()) {
                 continue;
             }
 
-            for (NodeIter v = list_[u].begin(); v != list_[u].end(); ++v) {
-                const _WeightedNode& _v = *v;
-                const _Node& n = _v.node;
-                if (!n) {
-                    continue;
-                }
-
-                if (n->color == COLOR_WHITE) {
-                    n->color = COLOR_GREY;
-                    n->distance = u->distance + _v.weight;
+            for_each(list_[u].begin(), list_[u].end(), [&u, &q](const _WeightedNode& w) {
+                const auto& n = w.node;
+                if (n && n->color == NodeColor::COLOR_WHITE) {
+                    n->color = NodeColor::COLOR_GREY;
+                    n->distance = u->distance + w.weight;
                     n->parent = u;
                     q.push(n);
                 }
-            }
-            u->color = COLOR_BLACK;
+            });
+            u->color = NodeColor::COLOR_BLACK;
         }
     }
 
@@ -285,23 +270,19 @@ public:
         resetStates();
 
         int32_t t = 0;
-        for (NodeMapIter x = list_.begin(); x != list_.end(); ++x) {
-            const _Node& node = x->first;
-            if (!node) {
-                continue;
-            }
-
-            if (node->color == COLOR_WHITE) {
+        for_each(list_.begin(), list_.end(), [&t, this](const pair<_Node, NodeList>& p){
+            const auto& node = p.first;
+            if (node && node->color == NodeColor::COLOR_WHITE) {
                 dfsVisit(node, t);
             }
-        }
+        });
     }
 
     void dfs(const Node& source)
     {
         resetStates();
 
-        _Node s = convertNode(source);
+        auto s = convertNode(source);
         if (!s) {
             return;
         }
@@ -310,7 +291,7 @@ public:
         dfsVisit(s, t);
     }
 
-    list<shared_ptr<NodeHolder<Node> > > topologicalSort()
+    list<shared_ptr<NodeHolder<Node>>> topologicalSort()
     {
         dfs();
         return topological_list_;
@@ -336,44 +317,36 @@ public:
      */
     bool bellmanFord(const Node& source)
     {
-        _Node s = convertNode(source);
+        auto s = convertNode(source);
         if (!s) {
             return false;
         }
 
         initializeSingleSource(s);
-        for (typename NodeListMap::size_type i = 1; i < list_.size(); ++i) {
-            for (NodeMapIter x = list_.begin(); x != list_.end(); ++x) {
-                const _Node& u = x->first;
-                if (!u) {
-                    continue;
+        for (auto i = list_.size(); i > 1; --i) {
+            for_each(list_.begin(), list_.end(), [this](const pair<_Node, NodeList>& p){
+                const auto& u = p.first;
+                const auto& l = p.second;
+                if (u) {
+                    for_each(l.begin(), l.end(), [&u, this](const _WeightedNode& v){ relax(u, v); });
                 }
-
-                for (NodeIter y = x->second.begin(); y != x->second.end(); ++y) {
-                    const _WeightedNode& v = *y;
-                    relax(u, v);
-                }
-            }
+            });
         }
 
-        for (NodeMapIter x = list_.begin(); x != list_.end(); ++x) {
-            const _Node& u = x->first;
-            if (!u) {
-                continue;
+        for_each(list_.begin(), list_.end(), [](const pair<_Node, NodeList>& p){
+            const auto& u = p.first;
+            const auto& l = p.second;
+            if (u) {
+                for_each(l.begin(), l.end(), [&u](const _WeightedNode& w){
+                    const auto& v = w.node;
+                    if (v) {
+                        if ((u->distance != n_infinity) && (v->distance > (u->distance + w.weight))) {
+                            return false;
+                        }
+                    }
+                });
             }
-
-            for (NodeIter y = x->second.begin(); y != x->second.end(); ++y) {
-                const _WeightedNode& v = *y;
-                const _Node& _v = v.node;
-                if (!_v) {
-                    continue;
-                }
-
-                if ((u->distance != n_infinity) && (_v->distance > (u->distance + v.weight))) {
-                    return false;
-                }
-            }
-        }
+        });
 
         return true;
     }
@@ -389,24 +362,19 @@ public:
      */
     void dagShortestPaths(const Node& source)
     {
-        _Node s = convertNode(source);
+        auto s = convertNode(source);
         if (!s) {
             return;
         }
 
-        list<_Node> vertices = topologicalSort();
+        auto vertices = topologicalSort();
         initializeSingleSource(s);
-        for (typename list<_Node>::iterator x = vertices.begin(); x != vertices.end(); ++x) {
-            const _Node& u = *x;
-            if (!u || list_.find(u) == list_.end()) {
-                continue;
-            }
 
-            for (NodeIter y = list_[u].begin(); y != list_[u].end(); ++y) {
-                const _WeightedNode& v = *y;
-                relax(u, v);
+        for_each(vertices.begin(), vertices.end(), [this](const _Node& u){
+            if (u && list_.find(u) != list_.end()) {
+                for_each(list_[u].begin(), list_[u].end(), [&u, this](const _WeightedNode& v){ relax(u, v); });
             }
-        }
+        });
     }
 
     /* @brief Dijkstra
@@ -423,80 +391,70 @@ public:
      */
     void dijkstra(const Node& source)
     {
-        _Node s = convertNode(source);
+        auto s = convertNode(source);
         if (!s) {
             return;
         }
 
         initializeSingleSource(s);
+
         list<_Node> q;
-        for (NodeMapIter x = list_.begin(); x != list_.end(); ++x) {
-            const _Node& u = x->first;
-            if (!u) {
-                continue;
+        for_each(list_.begin(), list_.end(), [&q](const pair<_Node, NodeList>& p){
+            const _Node& u = p.first;
+            if (u) {
+                q.push_back(u);
             }
+        });
 
-            q.push_back(u);
-        }
-
-        NodeLess<_Node> compare;
         while (!q.empty()) {
-            q.sort(compare);
-            const _Node& u = q.front();
+            q.sort([](const _Node& lhs, const _Node& rhs){
+                assert(lhs);
+                assert(rhs);
+                return (lhs->distance < rhs->distance);
+            });
+
+            const auto& u = q.front();
             assert(u);
-            for (NodeIter x = list_[u].begin(); x != list_[u].end(); ++x) {
-                const _WeightedNode& v = *x;
-                relax(u, v);
-            }
+
+            for_each(list_[u].begin(), list_[u].end(), [&u, this](const _WeightedNode& v){ relax(u, v); });
+
             q.pop_front();
         }
     }
 
     void dump() const
     {
-        for (NodeMapConstIter x = list_.cbegin(); x != list_.cend(); ++x) {
-            const _Node& n = x->first;
-            const NodeList l = x->second;
-            if (!n) {
-                continue;
+        for_each(list_.begin(), list_.end(), [](const pair<_Node, NodeList>& p){
+            const auto& n = p.first;
+            const auto& l = p.second;
+            if (n) {
+                cout << n->node << ": [ ";
+                for_each(l.begin(), l.end(), [](const _WeightedNode& n){
+                    if (n.node) {
+                        cout << (n.node)->node << " ";
+                    }
+                });
+                cout << "]\n";
             }
-
-            cout << n->node << ": [ ";
-            for (NodeConstIter y = l.cbegin(); y != l.cend(); ++y) {
-                const _WeightedNode& n = *y;
-                if (n.node) {
-                    cout << (n.node)->node << " ";
-                }
-            }
-            cout << "]\n";
-        }
+        });
     }
 
 private:
     _Node convertNode(const Node& n)
     {
-        _Node _node;
-        for (NodeMapIter it = list_.begin(); it != list_.end(); ++it) {
-            const _Node& _n = it->first;
-            if (_n && _n->node == n) {
-                _node = _n;
-                break;
-            }
-        }
-        return _node;
+        auto found = find_if(list_.begin(), list_.end(), [&n](const pair<_Node, NodeList>& p){ return (p.first && (p.first)->node == n); });
+        return (found == list_.end() ? _Node() : found->first);
     }
 
     void resetStates()
     {
         loop_detected_ = false;
-        for (NodeMapIter it = list_.begin(); it != list_.end(); ++it) {
-            const _Node& _node = it->first;
-            if (!_node) {
-                continue;
+        for_each(list_.begin(), list_.end(), [](const pair<_Node, NodeList>& p){
+            const _Node& n = p.first;
+            if (n) {
+                n->reset();
             }
-
-            _node->reset();
-        }
+        });
     }
 
     void dfsVisit(const _Node& n, int32_t& t)
@@ -508,27 +466,24 @@ private:
         // node n has just been discovered
         ++t;
         n->discover_time = t;
-        n->color = COLOR_GREY;
+        n->color = NodeColor::COLOR_GREY;
 
         // explore edge (n, v)
-        for (NodeIter x = list_[n].begin(); x != list_[n].end(); ++x) {
-            const _WeightedNode& weighted_node = *x;
-            const _Node& node = weighted_node.node;
-            if (!node) {
-                continue;
+        for_each(list_[n].begin(), list_[n].end(), [&n, &t, this](const _WeightedNode& w){
+            const _Node& node = w.node;
+            if (node) {
+                if (node->color == NodeColor::COLOR_WHITE) {
+                    node->parent = n;
+                    dfsVisit(node, t);
+                }
+                else if (node->color == NodeColor::COLOR_GREY) {
+                    loop_detected_ = true;
+                }
             }
-
-            if (node->color == COLOR_WHITE) {
-                node->parent = n;
-                dfsVisit(node, t);
-            }
-            else if (node->color == COLOR_GREY) {
-                loop_detected_ = true;
-            }
-        }
+        });
 
         // blacken n, it is finished
-        n->color = COLOR_BLACK;
+        n->color = NodeColor::COLOR_BLACK;
         ++t;
         n->finish_time = t;
 
@@ -585,7 +540,7 @@ public:
     {}
 };
 
-template <typename Node, class Impl = AdjacentList<Node> >
+template <typename Node, class Impl = AdjacentList<Node>>
 class Graph
 {
 public:
@@ -593,12 +548,12 @@ public:
         : directed_(directed)
     {}
 
-    set<shared_ptr<NodeHolder<Node> > > getVertices() const
+    set<shared_ptr<NodeHolder<Node>>> getVertices() const
     {
         return graph_.getVertices();
     }
 
-    shared_ptr<NodeHolder<Node> > addVertex(const Node& n)
+    shared_ptr<NodeHolder<Node>> addVertex(const Node& n)
     {
         return graph_.addVertex(n);
     }
@@ -631,7 +586,7 @@ public:
         return graph_.hasLoop();
     }
 
-    list<shared_ptr<NodeHolder<Node> > > topologicalSort()
+    list<shared_ptr<NodeHolder<Node>>> topologicalSort()
     {
         if (!directed_ || graph_.hasLoop()) {
             throw IllegalOperation("Topological sort can only be used on a directed non-loop graph");
@@ -702,15 +657,26 @@ template <typename Node>
 map<Node, int> calc(const Node& champion, Graph<Node>& graph)
 {
     map<Node, int> result;
-    //graph.bfs(champion);
-    //bool ret = graph.bellmanFord(champion);
-    //graph.dagShortestPaths(champion); // cannot use DAG, since it is not a directed non-circle graph in this case
-    graph.dijkstra(champion);
 
-    set<shared_ptr<NodeHolder<Node> > > vertices = graph.getVertices();
-    for (auto it = vertices.begin(); it != vertices.end(); ++it) {
-        result[(*it)->node] = (*it)->distance;
-    }
+    // Method 1: BFS
+    graph.bfs(champion);
+
+    // Method 2: Bellman-Ford
+    //bool ret = graph.bellmanFord(champion);
+
+    // Method 3: DAG shortest path
+    // CANNOT use DAG, since it is not a directed non-circle graph in this case
+    //graph.dagShortestPaths(champion);
+
+    // Method 4: Dijkstra
+    //graph.dijkstra(champion);
+
+    // Performance: Clang++ > GCC > VS
+    // Dijkstra = BFS > Bellman-Ford
+
+    using Vertex = shared_ptr<NodeHolder<Node>>;
+    set<Vertex> vertices = graph.getVertices();
+    for_each(vertices.begin(), vertices.end(), [&result](const Vertex& v){ result[v->node] = v->distance; });
 
     return result;
 }
@@ -718,14 +684,15 @@ map<Node, int> calc(const Node& champion, Graph<Node>& graph)
 template <typename Node>
 void showResult(const map<Node, int>& result)
 {
-    size_t n = result.size();
-    for (typename map<Node, int>::const_iterator it = result.cbegin(); it != result.cend(); ++it) {
-        cout << it->first << ' ';
-        if (it->second == n_infinity) {
+    auto n = result.size();
+
+    for_each(result.begin(), result.end(), [&n](const pair<Node, int>& p){
+        cout << p.first << ' ';
+        if (p.second == n_infinity) {
             cout << "undefined";
         }
         else {
-            cout << it->second;
+            cout << p.second;
         }
 
         if (n > 1) {
@@ -733,18 +700,20 @@ void showResult(const map<Node, int>& result)
         }
 
         --n;
-    }
+    });
 }
 
 int main(int argc, char* argv[])
 {
     Graph<string> graph(false /* directed */);
+
     getInput(graph);
-    ///*
+
     const string champion = "Isenbaev";
-    map<string, int> result = calc(champion, graph);
+    auto result = calc(champion, graph);
+
     showResult(result);
-    //*/
+
 /*
     try {
         list<shared_ptr<NodeHolder<string> > > topological_list = graph.topologicalSort();
@@ -756,6 +725,7 @@ int main(int argc, char* argv[])
         cout << e.what() << endl;
     }
 */
+
     return 0;
 }
 
