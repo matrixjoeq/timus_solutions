@@ -182,11 +182,7 @@ private:
     using _Node = shared_ptr<NodeHolder<Node>>;
     using _WeightedNode = WeightedNode<NodeHolder<Node>>;
     using NodeList = set<_WeightedNode>;
-    typedef typename NodeList::iterator NodeIter;
-    typedef typename NodeList::const_iterator NodeConstIter;
     using NodeListMap = map<_Node, NodeList>;
-    typedef typename NodeListMap::iterator NodeMapIter;
-    typedef typename NodeListMap::const_iterator NodeMapConstIter;
 
 public:
     set<shared_ptr<NodeHolder<Node>>> getVertices() const
@@ -229,6 +225,29 @@ public:
         }
     }
 
+    /**
+     * @brief BFS
+     *
+     * BFS(G, s)
+     *   for each vertex u in G.V - {s}
+     *     u.color = WHITE
+     *     u.distance = infinite
+     *     u.parent = NULL
+     *   s.color = GREY
+     *   s.distance = 0
+     *   s.parent = NULL
+     *   Q = {}
+     *   ENQUEUE(Q, s)
+     *   while Q != {}
+     *     u = DEQUEUE(Q)
+     *     for each v in G.Adj[u]
+     *       if v.color == WHITE
+     *         v.color = GREY
+     *         v.distance = u.distance + weight(u, v)
+     *         v.parent = u
+     *         ENQUEUE(Q, v)
+     *     u.color = BLACK
+     */
     void bfs(const Node& source)
     {
         resetStates();
@@ -265,6 +284,18 @@ public:
         }
     }
 
+    /**
+     * @brief DFS
+     *
+     * DFS(G)
+     *   for each vertex u in G.V
+     *     u.color = WHITE
+     *     u.parent = NULL
+     *   time = 0
+     *   for each vertex u in G.V
+     *     if u.color == WHITE
+     *       DFS-VISIT(G, u)
+     */
     void dfs()
     {
         resetStates();
@@ -303,7 +334,8 @@ public:
         return loop_detected_;
     }
 
-    /* @brief Bellman-Ford
+    /**
+     * @brief Bellman-Ford
      *
      * BELLMAN-FORD(G, w, s)
      *   INITIALIZE-SINGLE-SOURCE(G, s)
@@ -351,7 +383,8 @@ public:
         return true;
     }
 
-    /* @brief DAG-SHORTEST-PATHS
+    /**
+     * @brief DAG-SHORTEST-PATHS
      *
      * DAG-SHORTEST-PATHS(G, w, s)
      *   topologically sort the vertices of G
@@ -377,7 +410,8 @@ public:
         });
     }
 
-    /* @brief Dijkstra
+    /**
+     * @brief Dijkstra
      *
      * DIJKSTRA(G, w, s)
      *   INITIALIZE-SINGLE-SOURCE(G, s)
@@ -457,6 +491,21 @@ private:
         });
     }
 
+    /**
+     * @brief DFS-VISIT
+     *
+     * DFS-VISIT(G, u)
+     *   time = time + 1            // white vertex u has just been discovered
+     *   u.discover_time = time
+     *   u.color = GREY
+     *   for each v in G.Adj[u]     // explore edge (u, v)
+     *     if v.color == WHITE
+     *       v.parent = u
+     *       DFS-VISIT(G, v)
+     *  u.color = BLACK             // blacken u, it is finished
+     *  time = time + 1
+     *  u.finish_time = time
+     */
     void dfsVisit(const _Node& n, int32_t& t)
     {
         if (!n || list_.find(n) == list_.end()) {
@@ -499,7 +548,8 @@ private:
         }
     }
 
-    /* @brief RELAX operation
+    /**
+     * @brief RELAX operation
      *
      * RELAX(u, v, w)
      *   if v.d > u.d + w(u, v)
