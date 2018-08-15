@@ -24,7 +24,7 @@
 
 using namespace std;
 
-static const int32_t k_infinity = numeric_limits<int32_t>::max();
+static const auto k_infinity = numeric_limits<int32_t>::max();
 
 enum class NodeColor
 {
@@ -33,29 +33,32 @@ enum class NodeColor
     COLOR_BLACK     // visit from current node finished
 };
 
-template <typename Node>
+template <typename Node, typename Weight = int32_t>
 struct NodeHolder
 {
     Node node;
     shared_ptr<NodeHolder> parent;
     NodeColor color;
-    int32_t distance;       // used for BFS, recording distance to source; used for shortest path upper limit estimation
+    Weight  distance;       // used for BFS, recording distance to source; used for shortest path upper limit estimation
     int32_t discover_time;  // used for DFS, recording time when this node is discovered
     int32_t finish_time;    // used for DFS, recording time when DFS from this node is finished
+    int32_t index;
 
     NodeHolder()
         : color(NodeColor::COLOR_WHITE)
         , distance(k_infinity)
         , discover_time(-1)
         , finish_time(-1)
+        , index(-1)
     {}
 
-    explicit NodeHolder(const Node& n)
+    NodeHolder(const Node& n, int32_t id)
         : node(n)
         , color(NodeColor::COLOR_WHITE)
         , distance(k_infinity)
         , discover_time(-1)
         , finish_time(-1)
+        , index(id)
     {}
 
     void reset()
@@ -69,12 +72,12 @@ struct NodeHolder
 
     bool operator==(const NodeHolder& other) const
     {
-        return (node == other.node);
+        return (index == other.index);
     }
 
     bool operator<(const NodeHolder& other) const
     {
-        return (node < other.node);
+        return (index < other.index);
     }
 };
 
@@ -96,23 +99,16 @@ struct WeightedNode
 
     bool operator==(const WeightedNode& other) const
     {
-        return (node == other.node && weight = other.weight);
+        assert(node);
+        assert(other.node);
+        return (*node == *(other.node));
     }
 
     bool operator<(const WeightedNode& other) const
     {
-        if (!node && !(other.node)) {
-            return (weight < other.weight);
-        }
-        else if (!node && other.node) {
-            return true;
-        }
-        else if (node && !(other.node)) {
-            return false;
-        }
-        else {
-            return (*node < *(other.node));
-        }
+        assert(node);
+        assert(other.node);
+        return (*node < *(other.node));
     }
 };
 
@@ -120,8 +116,9 @@ template <typename Node, typename Weight = int32_t>
 class AdjacentList
 {
 private:
-    using _Node = shared_ptr<NodeHolder<Node>>;
-    using _WeightedNode = WeightedNode<NodeHolder<Node>>;
+    using _NodeHolder = NodeHolder<Node, Weight>;
+    using _Node = shared_ptr<_NodeHolder>;
+    using _WeightedNode = WeightedNode<_NodeHolder, Weight>;
     using WeightedNodeList = set<_WeightedNode>;
     using WeightedAdjacentList = map<_Node, WeightedNodeList>;
     using WeightedRow = pair<_Node, WeightedNodeList>;
@@ -138,9 +135,11 @@ private:
     }
 
 public:
-    set<shared_ptr<NodeHolder<Node>>> getVertices() const
+    AdjacentList() : loop_detected_(false), index_generator_(0) {}
+
+    set<shared_ptr<NodeHolder<Node, Weight>>> getVertices() const
     {
-        set<shared_ptr<NodeHolder<Node>>> vertices;
+        set<_Node> vertices;
         for_each(adj_list_.begin(), adj_list_.end(), [&vertices](const WeightedRow& row){
             const auto& node = rowHead(row);
             if (node) {
@@ -150,7 +149,7 @@ public:
         return vertices;
     }
 
-    shared_ptr<NodeHolder<Node>> addVertex(const Node& n)
+    shared_ptr<NodeHolder<Node, Weight>> addVertex(const Node& n)
     {
         auto found = find_if(adj_list_.begin(), adj_list_.end(), [&n](const WeightedRow& row){
             const auto& node = rowHead(row);
@@ -161,7 +160,8 @@ public:
             return found->first;
         }
 
-        auto node = make_shared<NodeHolder<Node>>(n);
+        auto node = make_shared<NodeHolder<Node, Weight>>(n, index_generator_);
+        ++index_generator_;
         if (node) {
             adj_list_[node] = WeightedNodeList();
         }
@@ -212,7 +212,7 @@ public:
         }
 
         s->color = NodeColor::COLOR_GREY;
-        s->distance = 0;
+        s->distance = static_cast<Weight>(0);
 
         queue<_Node> q;
         q.push(s);
@@ -277,7 +277,7 @@ public:
         dfsVisit(s, t);
     }
 
-    list<shared_ptr<NodeHolder<Node>>> topologicalSort()
+    list<shared_ptr<NodeHolder<Node, Weight>>> topologicalSort()
     {
         dfs();
         return topological_list_;
@@ -502,7 +502,7 @@ private:
     {
         resetStates();
         if (source) {
-            source->distance = 0;
+            source->distance = static_cast<Weight>(0);
         }
     }
 
@@ -538,6 +538,7 @@ private:
     WeightedAdjacentList adj_list_;
     bool loop_detected_;
     list<_Node> topological_list_;
+    int32_t index_generator_;
 };
 
 class IllegalOperation : public runtime_error
@@ -548,7 +549,7 @@ public:
     {}
 };
 
-template <typename Node, class Impl = AdjacentList<Node>>
+template <typename Node, typename Weight = int32_t, class Impl = AdjacentList<Node, Weight>>
 class Graph
 {
 public:
@@ -556,17 +557,17 @@ public:
         : directed_(directed)
     {}
 
-    set<shared_ptr<NodeHolder<Node>>> getVertices() const
+    set<shared_ptr<NodeHolder<Node, Weight>>> getVertices() const
     {
         return graph_.getVertices();
     }
 
-    shared_ptr<NodeHolder<Node>> addVertex(const Node& n)
+    shared_ptr<NodeHolder<Node, Weight>> addVertex(const Node& n)
     {
         return graph_.addVertex(n);
     }
 
-    void addEdge(const Node& from, const Node& to, int32_t weight = 1)
+    void addEdge(const Node& from, const Node& to, Weight weight = static_cast<Weight>(1))
     {
         graph_.addEdge(from, to, weight);
         if (!directed_) {
@@ -594,7 +595,7 @@ public:
         return graph_.hasLoop();
     }
 
-    list<shared_ptr<NodeHolder<Node>>> topologicalSort()
+    list<shared_ptr<NodeHolder<Node, Weight>>> topologicalSort()
     {
         if (!directed_ || graph_.hasLoop()) {
             throw IllegalOperation("Topological sort can only be used on a directed non-loop graph");
