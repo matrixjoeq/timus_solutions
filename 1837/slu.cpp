@@ -83,7 +83,7 @@ static void get_inputs(Container& c)
     }
 }
 
-static const int32_t n_infinity = numeric_limits<int32_t>::max();
+static const int32_t k_infinity = numeric_limits<int32_t>::max();
 
 enum class NodeColor
 {
@@ -104,7 +104,7 @@ struct NodeHolder
 
     NodeHolder()
         : color(NodeColor::COLOR_WHITE)
-        , distance(n_infinity)
+        , distance(k_infinity)
         , discover_time(-1)
         , finish_time(-1)
     {}
@@ -112,7 +112,7 @@ struct NodeHolder
     explicit NodeHolder(const Node& n)
         : node(n)
         , color(NodeColor::COLOR_WHITE)
-        , distance(n_infinity)
+        , distance(k_infinity)
         , discover_time(-1)
         , finish_time(-1)
     {}
@@ -121,7 +121,7 @@ struct NodeHolder
     {
         parent.reset();
         color = NodeColor::COLOR_WHITE;
-        distance = n_infinity;
+        distance = k_infinity;
         discover_time = -1;
         finish_time = -1;
     }
@@ -137,18 +137,18 @@ struct NodeHolder
     }
 };
 
-template <class NodeHolder>
+template <class NodeHolder, typename Weight = int32_t>
 struct WeightedNode
 {
     shared_ptr<NodeHolder> node;
-    int32_t weight;
+    Weight weight;
 
     WeightedNode()
         : node()
-        , weight(1)
+        , weight(static_cast<Weight>(1))
     {}
 
-    explicit WeightedNode(shared_ptr<NodeHolder> n, int32_t w = 1)
+    explicit WeightedNode(shared_ptr<NodeHolder> n, Weight w = static_cast<Weight>(1))
         : node(n)
         , weight(w)
     {}
@@ -175,21 +175,33 @@ struct WeightedNode
     }
 };
 
-template <typename Node>
+template <typename Node, typename Weight = int32_t>
 class AdjacentList
 {
 private:
     using _Node = shared_ptr<NodeHolder<Node>>;
     using _WeightedNode = WeightedNode<NodeHolder<Node>>;
-    using NodeList = set<_WeightedNode>;
-    using NodeListMap = map<_Node, NodeList>;
+    using WeightedNodeList = set<_WeightedNode>;
+    using WeightedAdjacentList = map<_Node, WeightedNodeList>;
+    using WeightedRow = pair<_Node, WeightedNodeList>;
+
+private:
+    static inline auto rowHead(const WeightedRow& row) -> decltype(row.first)
+    {
+        return row.first;
+    }
+
+    static inline auto rowTail(const WeightedRow& row) -> decltype(row.second)
+    {
+        return row.second;
+    }
 
 public:
     set<shared_ptr<NodeHolder<Node>>> getVertices() const
     {
         set<shared_ptr<NodeHolder<Node>>> vertices;
-        for_each(list_.begin(), list_.end(), [&vertices](const pair<_Node, NodeList>& p){
-            const auto& node = p.first;
+        for_each(adj_list_.begin(), adj_list_.end(), [&vertices](const WeightedRow& row){
+            const auto& node = rowHead(row);
             if (node) {
                 vertices.insert(node);
             }
@@ -199,29 +211,30 @@ public:
 
     shared_ptr<NodeHolder<Node>> addVertex(const Node& n)
     {
-        auto found = find_if(list_.begin(), list_.end(), [&n](const pair<_Node, NodeList>& p){
-            const auto& node = p.first;
+        auto found = find_if(adj_list_.begin(), adj_list_.end(), [&n](const WeightedRow& row){
+            const auto& node = rowHead(row);
             return (node && node->node == n);
         });
 
-        if (found != list_.end()) {
+        if (found != adj_list_.end()) {
             return found->first;
         }
 
         auto node = make_shared<NodeHolder<Node>>(n);
         if (node) {
-            list_[node] = NodeList();
+            adj_list_[node] = WeightedNodeList();
         }
+
         return node;
     }
 
-    void addEdge(const Node& from, const Node& to, int32_t weight = 1)
+    void addEdge(const Node& from, const Node& to, Weight weight = static_cast<Weight>(1))
     {
         auto _from = addVertex(from);
         auto _to = addVertex(to);
         if (_from && _to) {
             _WeightedNode _weighted(_to, weight);
-            list_[_from].insert(_weighted);
+            adj_list_[_from].insert(_weighted);
         }
     }
 
@@ -264,14 +277,14 @@ public:
         q.push(s);
 
         while (!q.empty()) {
-            auto u = q.front();
-            q.pop();
+            const auto& u = q.front();
 
-            if (!u || list_.find(u) == list_.end()) {
+            if (!u || adj_list_.find(u) == adj_list_.end()) {
+                q.pop();
                 continue;
             }
 
-            for_each(list_[u].begin(), list_[u].end(), [&u, &q](const _WeightedNode& w) {
+            for_each(adj_list_[u].begin(), adj_list_[u].end(), [&u, &q](const _WeightedNode& w) {
                 const auto& n = w.node;
                 if (n && n->color == NodeColor::COLOR_WHITE) {
                     n->color = NodeColor::COLOR_GREY;
@@ -281,6 +294,7 @@ public:
                 }
             });
             u->color = NodeColor::COLOR_BLACK;
+            q.pop();
         }
     }
 
@@ -301,8 +315,8 @@ public:
         resetStates();
 
         int32_t t = 0;
-        for_each(list_.begin(), list_.end(), [&t, this](const pair<_Node, NodeList>& p){
-            const auto& node = p.first;
+        for_each(adj_list_.begin(), adj_list_.end(), [&t, this](const WeightedRow& row){
+            const auto& node = rowHead(row);
             if (node && node->color == NodeColor::COLOR_WHITE) {
                 dfsVisit(node, t);
             }
@@ -355,24 +369,24 @@ public:
         }
 
         initializeSingleSource(s);
-        for (auto i = list_.size(); i > 1; --i) {
-            for_each(list_.begin(), list_.end(), [this](const pair<_Node, NodeList>& p){
-                const auto& u = p.first;
-                const auto& l = p.second;
+        for (auto i = adj_list_.size(); i > 1; --i) {
+            for_each(adj_list_.begin(), adj_list_.end(), [this](const WeightedRow& row){
+                const auto& u = rowHead(row);
+                const auto& l = rowTail(row);
                 if (u) {
                     for_each(l.begin(), l.end(), [&u, this](const _WeightedNode& v){ relax(u, v); });
                 }
             });
         }
 
-        for_each(list_.begin(), list_.end(), [](const pair<_Node, NodeList>& p){
-            const auto& u = p.first;
-            const auto& l = p.second;
+        for_each(adj_list_.begin(), adj_list_.end(), [](const WeightedRow& row){
+            const auto& u = rowHead(row);
+            const auto& l = rowTail(row);
             if (u) {
                 for_each(l.begin(), l.end(), [&u](const _WeightedNode& w){
                     const auto& v = w.node;
                     if (v) {
-                        if ((u->distance != n_infinity) && (v->distance > (u->distance + w.weight))) {
+                        if ((u->distance != k_infinity) && (v->distance > (u->distance + w.weight))) {
                             return false;
                         }
                     }
@@ -404,8 +418,8 @@ public:
         initializeSingleSource(s);
 
         for_each(vertices.begin(), vertices.end(), [this](const _Node& u){
-            if (u && list_.find(u) != list_.end()) {
-                for_each(list_[u].begin(), list_[u].end(), [&u, this](const _WeightedNode& v){ relax(u, v); });
+            if (u && adj_list_.find(u) != adj_list_.end()) {
+                for_each(adj_list_[u].begin(), adj_list_[u].end(), [&u, this](const _WeightedNode& v){ relax(u, v); });
             }
         });
     }
@@ -433,8 +447,8 @@ public:
         initializeSingleSource(s);
 
         list<_Node> q;
-        for_each(list_.begin(), list_.end(), [&q](const pair<_Node, NodeList>& p){
-            const _Node& u = p.first;
+        for_each(adj_list_.begin(), adj_list_.end(), [&q](const WeightedRow& row){
+            const _Node& u = rowHead(row);
             if (u) {
                 q.push_back(u);
             }
@@ -450,7 +464,7 @@ public:
             const auto& u = q.front();
             assert(u);
 
-            for_each(list_[u].begin(), list_[u].end(), [&u, this](const _WeightedNode& v){ relax(u, v); });
+            for_each(adj_list_[u].begin(), adj_list_[u].end(), [&u, this](const _WeightedNode& v){ relax(u, v); });
 
             q.pop_front();
         }
@@ -458,9 +472,9 @@ public:
 
     void dump() const
     {
-        for_each(list_.begin(), list_.end(), [](const pair<_Node, NodeList>& p){
-            const auto& n = p.first;
-            const auto& l = p.second;
+        for_each(adj_list_.begin(), adj_list_.end(), [](const WeightedRow& row){
+            const auto& n = rowHead(row);
+            const auto& l = rowTail(row);
             if (n) {
                 cout << n->node << ": [ ";
                 for_each(l.begin(), l.end(), [](const _WeightedNode& n){
@@ -476,15 +490,18 @@ public:
 private:
     _Node convertNode(const Node& n)
     {
-        auto found = find_if(list_.begin(), list_.end(), [&n](const pair<_Node, NodeList>& p){ return (p.first && (p.first)->node == n); });
-        return (found == list_.end() ? _Node() : found->first);
+        auto found = find_if(adj_list_.begin(), adj_list_.end(), [&n](const WeightedRow& row){
+            const auto& node = rowHead(row);
+            return (node && node->node == n);
+        });
+        return (found == adj_list_.end() ? _Node() : found->first);
     }
 
     void resetStates()
     {
         loop_detected_ = false;
-        for_each(list_.begin(), list_.end(), [](const pair<_Node, NodeList>& p){
-            const _Node& n = p.first;
+        for_each(adj_list_.begin(), adj_list_.end(), [](const WeightedRow& row){
+            const auto& n = rowHead(row);
             if (n) {
                 n->reset();
             }
@@ -508,7 +525,7 @@ private:
      */
     void dfsVisit(const _Node& n, int32_t& t)
     {
-        if (!n || list_.find(n) == list_.end()) {
+        if (!n || adj_list_.find(n) == adj_list_.end()) {
             return;
         }
 
@@ -518,8 +535,8 @@ private:
         n->color = NodeColor::COLOR_GREY;
 
         // explore edge (n, v)
-        for_each(list_[n].begin(), list_[n].end(), [&n, &t, this](const _WeightedNode& w){
-            const _Node& node = w.node;
+        for_each(adj_list_[n].begin(), adj_list_[n].end(), [&n, &t, this](const _WeightedNode& w){
+            const auto& node = w.node;
             if (node) {
                 if (node->color == NodeColor::COLOR_WHITE) {
                     node->parent = n;
@@ -558,18 +575,18 @@ private:
      */
     void relax(const _Node& u, const _WeightedNode& v)
     {
-        if (!u || !(v.node) || list_.find(u) == list_.end()) {
+        if (!u || !(v.node) || adj_list_.find(u) == adj_list_.end()) {
             return;
         }
 
-        if ((v.weight == n_infinity) || (u->distance == n_infinity)) {
+        if ((v.weight == k_infinity) || (u->distance == k_infinity)) {
             // w = w(u, v), (u, v) must in G.E
             // AND
             // v.d can never be greater than infinity
             return;
         }
 
-        // TODO: what if u.d + w > n_infinity
+        // TODO: what if u.d + w > k_infinity
         if ((v.node)->distance > (u->distance + v.weight)) {
             (v.node)->distance = u->distance + v.weight;
             (v.node)->parent = u;
@@ -577,7 +594,7 @@ private:
     }
 
 private:
-    NodeListMap list_;
+    WeightedAdjacentList adj_list_;
     bool loop_detected_;
     list<_Node> topological_list_;
 };
@@ -709,20 +726,41 @@ map<Node, int> calc(const Node& champion, Graph<Node>& graph)
     map<Node, int> result;
 
     // Method 1: BFS
+    // |----------|---------|---------|------------|
+    // | Compiler | Version | Time(s) | Memory(KB) |
+    // |----------|---------|---------|------------|
+    // | Clang++  | 4.0.1   | 0.046   | 588        |
+    // | G++      | 7.1     | 0.046   | 608        |
+    // | VC++     | 2017    | 0.078   | 492        |
+    // |----------|---------|---------|------------|
     graph.bfs(champion);
 
     // Method 2: Bellman-Ford
+    // |----------|---------|---------|------------|
+    // | Compiler | Version | Time(s) | Memory(KB) |
+    // |----------|---------|---------|------------|
+    // | Clang++  | 4.0.1   | 0.093   | 584        |
+    // | G++      | 7.1     | 0.078   | 608        |
+    // | VC++     | 2017    | 0.109   | 512        |
+    // |----------|---------|---------|------------|
     //bool ret = graph.bellmanFord(champion);
 
-    // Method 3: DAG shortest path
+    // Method 3: Dijkstra
+    // |----------|---------|---------|------------|
+    // | Compiler | Version | Time(s) | Memory(KB) |
+    // |----------|---------|---------|------------|
+    // | Clang++  | 4.0.1   | 0.062   | 592        |
+    // | G++      | 7.1     | 0.062   | 620        |
+    // | VC++     | 2017    | 0.078   | 492        |
+    // |----------|---------|---------|------------|
+    //graph.dijkstra(champion);
+
+    // Method 4: DAG shortest path
     // CANNOT use DAG, since it is not a directed non-circle graph in this case
     //graph.dagShortestPaths(champion);
 
-    // Method 4: Dijkstra
-    //graph.dijkstra(champion);
-
-    // Performance: Clang++ > GCC > VS
-    // Dijkstra = BFS > Bellman-Ford
+    // Compiler Performance: Clang++ > G++ > VC++
+    // Algorithem performance: BFS > Dijkstra > Bellman-Ford
 
     using Vertex = shared_ptr<NodeHolder<Node>>;
     set<Vertex> vertices = graph.getVertices();
@@ -738,7 +776,7 @@ void showResult(const map<Node, int>& result)
 
     for_each(result.begin(), result.end(), [&n](const pair<Node, int>& p){
         cout << p.first << ' ';
-        if (p.second == n_infinity) {
+        if (p.second == k_infinity) {
             cout << "undefined";
         }
         else {
@@ -763,18 +801,6 @@ int main(int argc, char* argv[])
     auto result = calc(champion, graph);
 
     showResult(result);
-
-/*
-    try {
-        list<shared_ptr<NodeHolder<string> > > topological_list = graph.topologicalSort();
-        for (auto it = topological_list.begin(); it != topological_list.end(); ++it) {
-            cout << (*it)->node << " [ " << (*it)->discover_time << ", " << (*it)->finish_time << " ] \n";
-        }
-    }
-    catch (const IllegalOperation& e) {
-        cout << e.what() << endl;
-    }
-*/
 
     return 0;
 }
