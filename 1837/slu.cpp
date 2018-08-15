@@ -446,27 +446,26 @@ public:
 
         initializeSingleSource(s);
 
-        list<_Node> q;
+        auto node_greater = [](const _Node& lhs, const _Node& rhs){
+            assert(lhs && rhs);
+            return (lhs->distance > rhs->distance);
+        };
+
+        priority_queue<_Node, vector<_Node>, decltype(node_greater)> q(node_greater);
         for_each(adj_list_.begin(), adj_list_.end(), [&q](const WeightedRow& row){
             const _Node& u = rowHead(row);
             if (u) {
-                q.push_back(u);
+                q.push(u);
             }
         });
 
         while (!q.empty()) {
-            q.sort([](const _Node& lhs, const _Node& rhs){
-                assert(lhs);
-                assert(rhs);
-                return (lhs->distance < rhs->distance);
-            });
-
-            const auto& u = q.front();
+            const auto& u = q.top();
             assert(u);
 
             for_each(adj_list_[u].begin(), adj_list_[u].end(), [&u, this](const _WeightedNode& v){ relax(u, v); });
 
-            q.pop_front();
+            q.pop();
         }
     }
 
@@ -733,7 +732,7 @@ map<Node, int> calc(const Node& champion, Graph<Node>& graph)
     // | G++      | 7.1     | 0.046   | 608        |
     // | VC++     | 2017    | 0.078   | 492        |
     // |----------|---------|---------|------------|
-    graph.bfs(champion);
+    //graph.bfs(champion);
 
     // Method 2: Bellman-Ford
     // |----------|---------|---------|------------|
@@ -754,7 +753,7 @@ map<Node, int> calc(const Node& champion, Graph<Node>& graph)
     // | G++      | 7.1     | 0.062   | 620        |
     // | VC++     | 2017    | 0.078   | 492        |
     // |----------|---------|---------|------------|
-    //graph.dijkstra(champion);
+    graph.dijkstra(champion);
 
     // Method 4: DAG shortest path
     // CANNOT use DAG, since it is not a directed non-circle graph in this case
