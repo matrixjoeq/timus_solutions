@@ -743,7 +743,8 @@ map<Node, int> calc(const Node& champion, Graph<Node>& graph)
     // | G++      | 7.1     | 0.078   | 608        |
     // | VC++     | 2017    | 0.109   | 512        |
     // |----------|---------|---------|------------|
-    //bool ret = graph.bellmanFord(champion);
+    // Whether detect loop or not, does not affect the performance
+    //graph.bellmanFord(champion);
 
     // Method 3: Dijkstra
     // |----------|---------|---------|------------|
